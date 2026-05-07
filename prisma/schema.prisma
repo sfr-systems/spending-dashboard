@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String?
+  files        UploadedFile[]
+  transactions Transaction[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model UploadedFile {
+  id                     String        @id @default(cuid())
+  userId                 String
+  user                   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalFilename       String
+  storedFilename         String
+  fileSize               Int
+  mimeType               String
+  uploadStatus           String        @default("uploaded")
+  rowCount               Int           @default(0)
+  parsedTransactionCount Int           @default(0)
+  parseError             String?
+  transactions           Transaction[]
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+}
+
+model Transaction {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileId          String
+  file            UploadedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  transactionDate DateTime
+  postedDate      DateTime?
+  description     String
+  merchant        String?
+  amount          Decimal
+  category        String       @default("Uncategorized")
+  transactionType String       @default("unknown")
+  accountName     String?
+  notes           String?
+  rawData         Json
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId, transactionDate])
+  @@index([userId, category])
+  @@index([fileId])
+}

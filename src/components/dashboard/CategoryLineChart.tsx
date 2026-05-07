@@ -142,7 +142,6 @@ export function CategoryLineChart({
             const isDimmed = hoveredCategory !== null && !isHovered;
             const gradId = `slcg-${cat.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
-            // eslint-disable-next-line react/display-name
             const makeDotRenderer = (catKey: string, dotColor: string) =>
               (dotProps: any) => {
                 const { cx, cy, index, payload } = dotProps;

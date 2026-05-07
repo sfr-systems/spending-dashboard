@@ -34,13 +34,11 @@ export function CategoryPieChart({ data, colorMap }: Props) {
 
   if (data.length === 0) return null;
 
-  const allIndices = data.map((_, i) => i);
-
   const renderShape = (props: any) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, index } = props;
     const midAngle = props.midAngle ?? (startAngle + endAngle) / 2;
     const entry = data[index];
-    if (!entry) return null;
+    if (!entry) return <></> as any;
 
     const fill = colorMap?.[entry.category] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
     const isHovered = index === hoveredIndex;
@@ -76,8 +74,7 @@ export function CategoryPieChart({ data, colorMap }: Props) {
           outerRadius="65%"
           paddingAngle={0}
           stroke="none"
-          activeIndex={allIndices}
-          activeShape={renderShape}
+          shape={renderShape}
           onMouseEnter={(_: any, index: number) => setHoveredIndex(index)}
           onMouseLeave={() => setHoveredIndex(undefined)}
           isAnimationActive={false}

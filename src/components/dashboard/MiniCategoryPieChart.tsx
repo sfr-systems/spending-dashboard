@@ -27,14 +27,16 @@ export function MiniCategoryPieChart({ data }: Props) {
   const getColor = (i: number, entry: DataPoint) =>
     entry.isOther ? OTHER_COLOR : TOP4_COLORS[i % TOP4_COLORS.length];
 
-  const renderActiveShape = (props: any) => {
+  const renderShape = (props: any) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, index } = props;
     const midAngle = props.midAngle ?? (startAngle + endAngle) / 2;
     const entry = data[index];
-    if (!entry) return null;
+    if (!entry) return <></> as any;
     const fill = getColor(index, entry);
-    const dx = HOVER_OFFSET * Math.cos(-midAngle * RADIAN);
-    const dy = HOVER_OFFSET * Math.sin(-midAngle * RADIAN);
+    const isHovered = index === hoveredIndex;
+    const isDimmed = hoveredIndex !== undefined && !isHovered;
+    const dx = isHovered ? HOVER_OFFSET * Math.cos(-midAngle * RADIAN) : 0;
+    const dy = isHovered ? HOVER_OFFSET * Math.sin(-midAngle * RADIAN) : 0;
     return (
       <Sector
         cx={cx + dx}
@@ -44,6 +46,7 @@ export function MiniCategoryPieChart({ data }: Props) {
         startAngle={startAngle}
         endAngle={endAngle}
         fill={fill}
+        fillOpacity={isDimmed ? 0.22 : 1}
       />
     );
   };
@@ -64,22 +67,14 @@ export function MiniCategoryPieChart({ data }: Props) {
               outerRadius="90%"
               paddingAngle={0}
               stroke="none"
-              activeIndex={hoveredIndex}
-              activeShape={renderActiveShape}
+              shape={renderShape}
               onMouseEnter={(_: any, index: number) => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(undefined)}
               isAnimationActive={false}
             >
-              {data.map((entry, i) => {
-                const isDimmed = hoveredIndex !== undefined && i !== hoveredIndex;
-                return (
-                  <Cell
-                    key={entry.name}
-                    fill={getColor(i, entry)}
-                    fillOpacity={isDimmed ? 0.22 : 1}
-                  />
-                );
-              })}
+              {data.map((entry, i) => (
+                <Cell key={entry.name} fill={getColor(i, entry)} />
+              ))}
             </Pie>
           </PieChart>
         </ResponsiveContainer>

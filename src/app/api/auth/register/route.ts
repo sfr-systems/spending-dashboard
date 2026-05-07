@@ -53,10 +53,9 @@ export async function POST(request: NextRequest) {
       { message: "Account created successfully." },
       { status: 201 }
     );
-  } catch (err) {
-    console.error("[register] error:", err);
+  } catch {
     return NextResponse.json(
-      { error: "Something went wrong. Please try again.", detail: String(err) },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

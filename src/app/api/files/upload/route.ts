@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import Busboy from "busboy";
 import { Readable } from "stream";
@@ -79,14 +78,6 @@ export async function POST(request: NextRequest) {
   const userId = session.user.id;
   const timestamp = Date.now();
   const storedFilename = `${timestamp}-${originalFilename.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-  const uploadDir = path.join(process.cwd(), "uploads", userId);
-
-  try {
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, storedFilename), buffer);
-  } catch {
-    return NextResponse.json({ error: "Failed to save file" }, { status: 500 });
-  }
 
   // Create the file record with "processing" status
   let fileRecord: { id: string };

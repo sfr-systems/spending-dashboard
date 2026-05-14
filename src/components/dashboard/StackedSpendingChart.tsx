@@ -6,6 +6,7 @@ import {
   Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
@@ -124,9 +125,12 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
   );
 
   return (
-    <div className="flex flex-col mt-1">
-      {/* Monthly / Weekly toggle */}
-      <div className="mb-3 flex items-center gap-2">
+    <div className="flex flex-col">
+      {/* Header: section title + Monthly/Weekly toggle */}
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          Spending by category
+        </h2>
         <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">
           {(["monthly", "weekly"] as const).map((v) => (
             <button
@@ -164,10 +168,16 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={periods}
-                margin={{ top: 4, right: 16, bottom: isMobile ? 4 : 48, left: 8 }}
-                barCategoryGap="22%"
+                margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
+                barCategoryGap="16%"
                 barGap={4}
               >
+                <CartesianGrid
+                  vertical={false}
+                  stroke="hsl(var(--border))"
+                  strokeOpacity={0.6}
+                  strokeDasharray="3 3"
+                />
                 <XAxis
                   dataKey="period"
                   tick={
@@ -176,7 +186,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
                       : { fontSize: 10, angle: -90, textAnchor: "end", dy: -4, dx: -4 }
                   }
                   tickLine={false}
-                  axisLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
                   interval={0}
                   height={isMobile ? 8 : 56}
                 />
@@ -186,7 +196,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
                   }
                   tick={{ fontSize: 11 }}
                   tickLine={false}
-                  axisLine={false}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
                   width={52}
                 />
                 <Tooltip
@@ -213,7 +223,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
                     stackId="spending"
                     fill={colorMap[cat]}
                     fillOpacity={hoveredCategory && hoveredCategory !== cat ? 0.2 : 1}
-                    maxBarSize={56}
+                    maxBarSize={68}
                     radius={
                       idx === visibleCategories.length - 1
                         ? [4, 4, 0, 0]
@@ -227,7 +237,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
                     dataKey="Income"
                     stackId="income"
                     fill={INCOME_COLOR}
-                    maxBarSize={56}
+                    maxBarSize={68}
                     radius={[4, 4, 0, 0]}
                     fillOpacity={0.85}
                     isAnimationActive={false}

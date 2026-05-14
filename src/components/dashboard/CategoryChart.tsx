@@ -25,9 +25,11 @@ interface Props {
   /** Category-name → hex color. When provided, colors are stable even when
    *  categories are filtered out. Falls back to index-based palette otherwise. */
   colorMap?: Record<string, string>;
+  hoveredCategory?: string | null;
+  onHover?: (category: string | null) => void;
 }
 
-export function CategoryChart({ data, colorMap }: Props) {
+export function CategoryChart({ data, colorMap, hoveredCategory, onHover }: Props) {
   if (data.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
@@ -80,14 +82,23 @@ export function CategoryChart({ data, colorMap }: Props) {
           radius={[0, 4, 4, 0]}
           maxBarSize={28}
           isAnimationActive={false}
+          onMouseEnter={(barData: any) => onHover?.(barData.category)}
+          onMouseLeave={() => onHover?.(null)}
         >
           {display.map((entry) => {
-            // Use colorMap if available (stable colors), otherwise fall back to
-            // the original index within the full data array.
             const color =
               colorMap?.[entry.category] ??
               FALLBACK_COLORS[data.indexOf(entry) % FALLBACK_COLORS.length];
-            return <Cell key={entry.category} fill={color} />;
+            const isHovered = hoveredCategory === entry.category;
+            const isDimmed = hoveredCategory != null && !isHovered;
+            return (
+              <Cell
+                key={entry.category}
+                fill={color}
+                fillOpacity={isDimmed ? 0.22 : 1}
+                style={{ transition: "fill-opacity 100ms" }}
+              />
+            );
           })}
         </Bar>
       </BarChart>

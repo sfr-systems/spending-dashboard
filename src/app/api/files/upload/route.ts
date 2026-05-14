@@ -114,6 +114,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: fileRecord.id, parseError }, { status: 201 });
   }
 
+  // Load user's source-name overrides so renamed sources are applied to new uploads
+  const overrides = await db.sourceNameOverride.findMany({
+    where: { userId },
+    select: { originalName: true, overrideName: true },
+  });
+  const overrideMap = new Map(overrides.map((o) => [o.originalName, o.overrideName]));
+
   try {
     await db.transaction.createMany({
       data: result.transactions.map((t) => ({
@@ -122,9 +129,11 @@ export async function POST(request: NextRequest) {
         transactionDate: t.transactionDate,
         postedDate: t.postedDate,
         description: t.description,
+        cleanedDescription: overrideMap.get(t.cleanedDescription) ?? t.cleanedDescription,
         merchant: t.merchant,
         amount: t.amount,
         category: t.category,
+        derivedCategory: t.derivedCategory,
         transactionType: t.transactionType,
         accountName: t.accountName,
         notes: t.notes,

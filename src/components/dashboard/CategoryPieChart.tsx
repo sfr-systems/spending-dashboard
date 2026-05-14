@@ -1,20 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Sector,
-} from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 import type { CategoryTotal } from "@/lib/dashboard";
 import { CATEGORY_COLORS as FALLBACK_COLORS } from "./colors";
 
 const RADIAN = Math.PI / 180;
-const BASE_OFFSET = 8;
-const HOVER_EXTRA = 8;
+const HOVER_EXTRA = 10;
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -27,12 +19,22 @@ function formatCurrency(value: number) {
 interface Props {
   data: CategoryTotal[];
   colorMap?: Record<string, string>;
+  hoveredCategory?: string | null;
+  onHover?: (category: string | null) => void;
 }
 
-export function CategoryPieChart({ data, colorMap }: Props) {
+export function CategoryPieChart({ data, colorMap, hoveredCategory, onHover }: Props) {
   const [hoveredIndex, setHoveredIndex] = useState<number | undefined>(undefined);
 
   if (data.length === 0) return null;
+
+  // Resolve the externally-hovered category to an index for cross-highlighting.
+  const externalHoveredIndex =
+    hoveredCategory != null ? data.findIndex((d) => d.category === hoveredCategory) : -1;
+
+  // Internal (pie-direct) hover takes priority; fall back to external.
+  const effectiveHoveredIndex =
+    hoveredIndex !== undefined ? hoveredIndex : externalHoveredIndex >= 0 ? externalHoveredIndex : undefined;
 
   const renderShape = (props: any) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, index } = props;
@@ -41,9 +43,11 @@ export function CategoryPieChart({ data, colorMap }: Props) {
     if (!entry) return <></> as any;
 
     const fill = colorMap?.[entry.category] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
-    const isHovered = index === hoveredIndex;
-    const isDimmed = hoveredIndex !== undefined && !isHovered;
-    const offset = BASE_OFFSET + (isHovered ? HOVER_EXTRA : 0);
+    // Only pop out the sector when the mouse is directly over the pie.
+    const isDirectlyHovered = index === hoveredIndex;
+    const isEffectivelyHovered = index === effectiveHoveredIndex;
+    const isDimmed = effectiveHoveredIndex !== undefined && !isEffectivelyHovered;
+    const offset = isDirectlyHovered ? HOVER_EXTRA : 0;
     const dx = offset * Math.cos(-midAngle * RADIAN);
     const dy = offset * Math.sin(-midAngle * RADIAN);
 
@@ -61,43 +65,60 @@ export function CategoryPieChart({ data, colorMap }: Props) {
     );
   };
 
+  const hoveredEntry = effectiveHoveredIndex !== undefined ? data[effectiveHoveredIndex] : undefined;
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey="total"
-          nameKey="category"
-          cx="50%"
-          cy="50%"
-          innerRadius="30%"
-          outerRadius="65%"
-          paddingAngle={0}
-          stroke="none"
-          shape={renderShape}
-          onMouseEnter={(_: any, index: number) => setHoveredIndex(index)}
-          onMouseLeave={() => setHoveredIndex(undefined)}
-          isAnimationActive={false}
+    <div className="relative w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="total"
+            nameKey="category"
+            cx="50%"
+            cy="50%"
+            innerRadius="42%"
+            outerRadius="82%"
+            paddingAngle={0}
+            stroke="none"
+            shape={renderShape}
+            onMouseEnter={(_: any, index: number) => {
+              setHoveredIndex(index);
+              onHover?.(data[index]?.category ?? null);
+            }}
+            onMouseLeave={() => {
+              setHoveredIndex(undefined);
+              onHover?.(null);
+            }}
+            isAnimationActive={false}
+          >
+            {data.map((entry, i) => {
+              const color = colorMap?.[entry.category] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+              return <Cell key={entry.category} fill={color} />;
+            })}
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+
+      {hoveredEntry && (
+        <div
+          key={effectiveHoveredIndex}
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-0.5"
         >
-          {data.map((entry, i) => {
-            const color = colorMap?.[entry.category] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length];
-            return <Cell key={entry.category} fill={color} />;
-          })}
-        </Pie>
-        <Tooltip
-          content={({ active, payload }) => {
-            if (!active || !payload?.length) return null;
-            const item = payload[0] as any;
-            const name = item.name ?? item.payload?.category ?? "";
-            return (
-              <div className="rounded-lg border bg-popover px-3 py-2 text-popover-foreground shadow text-xs">
-                <p className="font-semibold mb-1">{name}</p>
-                <p>{formatCurrency(Number(item.value))}</p>
-              </div>
-            );
-          }}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+          <span
+            className="text-xs font-medium text-muted-foreground"
+            style={{ animation: "pieValueIn 180ms ease-out forwards" }}
+          >
+            {hoveredEntry.category}
+          </span>
+          <span
+            className="text-base font-semibold text-foreground tabular-nums"
+            style={{ animation: "pieValueIn 180ms ease-out forwards" }}
+          >
+            {formatCurrency(hoveredEntry.total)}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

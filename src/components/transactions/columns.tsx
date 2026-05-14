@@ -9,9 +9,11 @@ export type TransactionRow = {
   id: string;
   transactionDate: string; // ISO string
   description: string;
+  cleanedDescription: string;
   merchant: string | null;
   amount: number;
   category: string;
+  derivedCategory: string;
   transactionType: string;
   accountName: string | null;
   filename: string;
@@ -76,6 +78,15 @@ export const columns: ColumnDef<TransactionRow>[] = [
     },
   },
   {
+    accessorKey: "cleanedDescription",
+    header: "Cleaned Name",
+    cell: ({ getValue }) => (
+      <span className="max-w-[200px] truncate text-sm font-medium">
+        {getValue<string>()}
+      </span>
+    ),
+  },
+  {
     accessorKey: "amount",
     header: ({ column }) => (
       <div className="flex justify-end">
@@ -101,6 +112,13 @@ export const columns: ColumnDef<TransactionRow>[] = [
   {
     accessorKey: "category",
     header: "Category",
+    cell: ({ getValue }) => (
+      <span className="text-sm">{getValue<string>()}</span>
+    ),
+  },
+  {
+    accessorKey: "derivedCategory",
+    header: "Smart Category",
     cell: ({ getValue }) => (
       <span className="text-sm">{getValue<string>()}</span>
     ),

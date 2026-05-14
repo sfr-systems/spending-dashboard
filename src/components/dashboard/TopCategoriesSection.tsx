@@ -85,7 +85,25 @@ export function TopCategoriesSection({ data }: Props) {
   if (isLandscape) {
     return (
       <div className="flex gap-4 mt-1 items-center">
-        {/* Shared legend for both bar and pie */}
+        <div className="flex-[2] min-w-0 h-64 sm:h-80">
+          <CategoryChart
+            data={visibleData}
+            colorMap={colorMap}
+            hoveredCategory={hoveredCategory}
+            onHover={setHoveredCategory}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0 h-64 sm:h-80">
+          <CategoryPieChart
+            data={visibleData}
+            colorMap={colorMap}
+            hoveredCategory={hoveredCategory}
+            onHover={setHoveredCategory}
+          />
+        </div>
+
+        {/* Legend on the far right */}
         <div className="shrink-0 w-36">
           <CategoryLegend
             items={legendItems}
@@ -93,15 +111,8 @@ export function TopCategoriesSection({ data }: Props) {
             onHover={setHoveredCategory}
             omittedCategories={omittedCategories}
             onToggle={toggleCategory}
+            align="right"
           />
-        </div>
-
-        <div className="flex-[2] min-w-0 h-64 sm:h-80">
-          <CategoryChart data={visibleData} colorMap={colorMap} />
-        </div>
-
-        <div className="flex-1 min-w-0 h-64 sm:h-80">
-          <CategoryPieChart data={visibleData} colorMap={colorMap} />
         </div>
       </div>
     );

@@ -19,7 +19,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className={`${inter.className} h-full`}>
+      <body className={`${inter.className} h-full`} suppressHydrationWarning>
+        {/* Runs before React hydrates so there's no flash to the wrong theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme')||'dark';if(t==='dark')document.documentElement.classList.add('dark');}catch(e){document.documentElement.classList.add('dark');}})();`,
+          }}
+        />
         <ThemeProvider>
           <SessionProvider>{children}</SessionProvider>
         </ThemeProvider>

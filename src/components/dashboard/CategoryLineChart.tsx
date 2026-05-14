@@ -6,6 +6,7 @@ import {
   Area,
   XAxis,
   YAxis,
+  CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
 import type { StackedPeriod } from "@/lib/dashboard";
@@ -97,7 +98,7 @@ export function CategoryLineChart({
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={periods}
-          margin={{ top: 4, right: 16, bottom: isMobile ? 4 : 32, left: 8 }}
+          margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => onCategoryHover(null)}
         >
@@ -114,6 +115,12 @@ export function CategoryLineChart({
             })}
           </defs>
 
+          <CartesianGrid
+            vertical={false}
+            stroke="hsl(var(--border))"
+            strokeOpacity={0.6}
+            strokeDasharray="3 3"
+          />
           <XAxis
             dataKey="period"
             tick={
@@ -122,7 +129,7 @@ export function CategoryLineChart({
                 : { fontSize: 10, angle: -90, textAnchor: "end", dy: -4, dx: -4 }
             }
             tickLine={false}
-            axisLine={false}
+            axisLine={{ stroke: "hsl(var(--border))" }}
             interval={0}
             height={isMobile ? 8 : 48}
           />
@@ -132,7 +139,7 @@ export function CategoryLineChart({
             }
             tick={{ fontSize: 11 }}
             tickLine={false}
-            axisLine={false}
+            axisLine={{ stroke: "hsl(var(--border))" }}
             width={52}
           />
 

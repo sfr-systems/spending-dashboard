@@ -6,14 +6,17 @@ import {
   normalizeDescription,
   inferTransactionType,
 } from "./normalize";
+import { buildCleanedDescription, buildDerivedCategory } from "./enrich";
 
 export interface ParsedTransaction {
   transactionDate: Date;
   postedDate: Date | null;
   description: string;
+  cleanedDescription: string;
   merchant: string | null;
   amount: number;
   category: string;
+  derivedCategory: string;
   transactionType: string;
   accountName: string | null;
   notes: string | null;
@@ -129,13 +132,18 @@ export function parseCSVBuffer(buffer: Buffer): ParseResult {
     const notes =
       map.notes !== undefined ? (row[map.notes]?.trim() || null) : null;
 
+    const cleanedDescription = buildCleanedDescription(description);
+    const derivedCategory = buildDerivedCategory(description, category);
+
     transactions.push({
       transactionDate,
       postedDate,
       description,
+      cleanedDescription,
       merchant,
       amount,
       category,
+      derivedCategory,
       transactionType,
       accountName,
       notes,

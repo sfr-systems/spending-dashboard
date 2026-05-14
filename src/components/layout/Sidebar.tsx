@@ -4,7 +4,7 @@ import { AccountSection } from "./AccountSection";
 
 export function Sidebar() {
   return (
-    <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r border-border bg-background">
+    <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r border-border" style={{ backgroundColor: "hsl(var(--sidebar, var(--background)))" }}>
       <div className="flex flex-col flex-1 min-h-0 px-4 py-6">
         {/* Logo / App name */}
         <div className="flex items-center gap-2 mb-8 px-3">

@@ -19,6 +19,14 @@ interface Props {
   data: DataPoint[];
 }
 
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function MiniCategoryPieChart({ data }: Props) {
   const [hoveredIndex, setHoveredIndex] = useState<number | undefined>(undefined);
 
@@ -51,10 +59,12 @@ export function MiniCategoryPieChart({ data }: Props) {
     );
   };
 
+  const hoveredEntry = hoveredIndex !== undefined ? data[hoveredIndex] : undefined;
+
   return (
     <div className="flex flex-col items-center h-full w-full gap-2">
-      {/* Pie chart — fills available vertical space */}
-      <div className="flex-1 w-full min-h-0">
+      {/* Pie chart with centered hover amount */}
+      <div className="flex-1 w-full min-h-0 relative">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
             <Pie
@@ -78,9 +88,23 @@ export function MiniCategoryPieChart({ data }: Props) {
             </Pie>
           </PieChart>
         </ResponsiveContainer>
+
+        {hoveredEntry && (
+          <div
+            key={hoveredIndex}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <span
+              className="text-sm font-semibold text-foreground tabular-nums"
+              style={{ animation: "pieValueIn 180ms ease-out forwards" }}
+            >
+              {formatCurrency(hoveredEntry.value)}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Legend — wraps horizontally below the chart */}
+      {/* Legend */}
       <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 shrink-0">
         {data.map((entry, i) => {
           const isDimmed = hoveredIndex !== undefined && i !== hoveredIndex;

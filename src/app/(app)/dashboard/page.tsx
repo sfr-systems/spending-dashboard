@@ -8,9 +8,13 @@ import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { TopCategoriesSection } from "@/components/dashboard/TopCategoriesSection";
 import { StackedSpendingChart } from "@/components/dashboard/StackedSpendingChart";
 import { IncomeToggle } from "@/components/dashboard/IncomeToggle";
+import { CleanedDataToggle } from "@/components/dashboard/CleanedDataToggle";
 import { ClientOnly } from "@/components/dashboard/ClientOnly";
 import { WaveDivider } from "@/components/dashboard/WaveDivider";
+import { StarBackground } from "@/components/dashboard/StarBackground";
 import { SummaryCharts } from "@/components/dashboard/SummaryCharts";
+import { SpendingBySourceSection } from "@/components/dashboard/SpendingBySourceSection";
+import type { SourceTransaction } from "@/components/dashboard/SpendingBySourceSection";
 import {
   computeSummary,
   computeByCategory,
@@ -23,7 +27,7 @@ import {
 export const metadata = { title: "Dashboard — SpendWise" };
 
 interface PageProps {
-  searchParams: { period?: string; income?: string };
+  searchParams: { period?: string; income?: string; cleaned?: string };
 }
 
 export default async function DashboardPage({ searchParams }: PageProps) {
@@ -32,6 +36,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   const period = searchParams.period ?? "all";
   const includeIncome = searchParams.income === "1";
+  const cleanedData = searchParams.cleaned !== "0";
   const since = periodStart(period);
 
   const raw = await db.transaction.findMany({
@@ -43,14 +48,19 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       transactionDate: true,
       amount: true,
       category: true,
+      derivedCategory: true,
       transactionType: true,
+      description: true,
+      cleanedDescription: true,
     },
   });
 
   const transactions = raw.map((t) => ({
     transactionDate: t.transactionDate,
     amount: t.amount.toNumber(),
-    category: t.category,
+    category: cleanedData
+      ? t.derivedCategory || t.category
+      : t.category,
     transactionType: t.transactionType,
   }));
 
@@ -74,10 +84,26 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     ...(otherTotal > 0 ? [{ name: "Other", value: otherTotal, isOther: true }] : []),
   ];
 
+  // Build serializable source transactions for the SpendingBySource section
+  const sourceTxns: SourceTransaction[] = raw.map((t) => ({
+    date: t.transactionDate.toISOString(),
+    amount: t.amount.toNumber(),
+    source: cleanedData
+      ? t.cleanedDescription || t.description
+      : t.description,
+  }));
+
+  const allSources = Array.from(
+    new Set(
+      sourceTxns.filter((t) => t.amount < 0).map((t) => t.source)
+    )
+  ).sort();
+
   const isEmpty = transactions.length === 0;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="relative isolate flex flex-col gap-4">
+      <StarBackground />
       {/* Header row */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -89,6 +115,9 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Suspense>
+            <CleanedDataToggle />
+          </Suspense>
           <Suspense>
             <IncomeToggle />
           </Suspense>
@@ -111,9 +140,6 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
           {/* Section 2: Timeline analysis */}
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-              Spending by category
-            </h2>
             <ClientOnly fallbackHeight="h-72">
               <StackedSpendingChart
                 monthlyData={monthlyData}
@@ -132,6 +158,19 @@ export default async function DashboardPage({ searchParams }: PageProps) {
             </h2>
             <ClientOnly fallbackHeight="h-64">
               <TopCategoriesSection data={byCategory} />
+            </ClientOnly>
+          </div>
+
+          <WaveDivider className="my-8" />
+
+          {/* Section 4: Spending by source */}
+          <div className="rounded-xl border border-border bg-card p-5">
+            <ClientOnly fallbackHeight="h-40">
+              <SpendingBySourceSection
+                allSources={allSources}
+                transactions={sourceTxns}
+                cleanedData={cleanedData}
+              />
             </ClientOnly>
           </div>
         </div>

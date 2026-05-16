@@ -191,7 +191,9 @@ export default async function DashboardPage(props: PageProps) {
             <SummaryCharts barData={last12} pieData={miniPieData} />
           </ClientOnly>
 
-          <WaveDivider className="my-8" scrollOffset={0} />
+          <ClientOnly fallbackHeight="h-10 my-8">
+            <WaveDivider className="my-8" scrollOffset={0} />
+          </ClientOnly>
 
           {/* Section 2: Timeline analysis */}
           <div className="rounded-xl border border-border bg-card p-5">
@@ -204,7 +206,9 @@ export default async function DashboardPage(props: PageProps) {
             </ClientOnly>
           </div>
 
-          <WaveDivider className="my-8" scrollOffset={1257} />
+          <ClientOnly fallbackHeight="h-10 my-8">
+            <WaveDivider className="my-8" scrollOffset={1257} />
+          </ClientOnly>
 
           {/* Section 3: Category analysis */}
           <div className="rounded-xl border border-border bg-card p-5">
@@ -216,7 +220,9 @@ export default async function DashboardPage(props: PageProps) {
             </ClientOnly>
           </div>
 
-          <WaveDivider className="my-8" scrollOffset={2513} />
+          <ClientOnly fallbackHeight="h-10 my-8">
+            <WaveDivider className="my-8" scrollOffset={2513} />
+          </ClientOnly>
 
           {/* Section 4: Spending by source */}
           <div className="rounded-xl border border-border bg-card p-5">

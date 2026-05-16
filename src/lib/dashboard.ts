@@ -142,7 +142,7 @@ function buildStackedData(
   return { periods, categories };
 }
 
-const toMonthKey = (d: Date) =>
+export const toMonthKey = (d: Date) =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
 export function computeStackedByMonth(

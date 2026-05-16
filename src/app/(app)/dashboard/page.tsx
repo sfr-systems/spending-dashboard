@@ -22,6 +22,7 @@ import {
   computeStackedByMonth,
   computeStackedByWeek,
   periodStart,
+  toMonthKey,
 } from "@/lib/dashboard";
 
 export const metadata = { title: "Dashboard — SpendWise" };
@@ -130,9 +131,6 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       sourceTxns.filter((t) => t.amount < 0).map((t) => t.source)
     )
   ).sort();
-
-  const toMonthKey = (d: Date) =>
-    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
   // Global data range from all spending transactions so the timeline in
   // SpendingBySource stays consistent regardless of which source is selected.

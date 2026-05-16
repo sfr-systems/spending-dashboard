@@ -14,8 +14,9 @@ import {
   useXAxisScale,
   useYAxisScale,
 } from "recharts";
-import { Search, X, Check, List, Pencil } from "lucide-react";
+import { Search, X, Check, List, Pencil, ChevronDown } from "lucide-react";
 import { CATEGORY_COLORS } from "./colors";
+import { getISOWeekKey } from "@/lib/dashboard";
 
 export interface SourceTransaction {
   date: string; // ISO string
@@ -27,6 +28,8 @@ interface Props {
   allSources: string[];
   transactions: SourceTransaction[];
   cleanedData: boolean;
+  periodBoundStart?: string;
+  periodBoundEnd?: string;
 }
 
 function formatCurrency(v: number) {
@@ -37,9 +40,13 @@ function formatCurrency(v: number) {
   }).format(v);
 }
 
-function fillMonthGaps(keys: string[]): string[] {
-  if (keys.length < 2) return [...keys].sort();
-  const sorted = [...keys].sort();
+function fillMonthGaps(keys: string[], boundStart?: string, boundEnd?: string): string[] {
+  const effective = new Set(keys);
+  if (boundStart) effective.add(boundStart);
+  if (boundEnd) effective.add(boundEnd);
+  if (effective.size === 0) return [];
+  const sorted = Array.from(effective).sort();
+  if (sorted.length === 1) return sorted;
   const [startY, startM] = sorted[0].split("-").map(Number);
   const [endY, endM] = sorted[sorted.length - 1].split("-").map(Number);
   const result: string[] = [];
@@ -51,33 +58,78 @@ function fillMonthGaps(keys: string[]): string[] {
   return result;
 }
 
+function getWeekStart(weekKey: string): Date {
+  const [yr, wk] = weekKey.split("-W").map(Number);
+  const jan4 = new Date(Date.UTC(yr, 0, 4));
+  const day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(jan4.getTime() - (day - 1) * 86400000);
+  return new Date(week1Monday.getTime() + (wk - 1) * 7 * 86400000);
+}
+
+function fillWeekGaps(keys: string[], boundStart?: string, boundEnd?: string): string[] {
+  const effective = new Set(keys);
+  if (boundStart) effective.add(boundStart);
+  if (boundEnd) effective.add(boundEnd);
+  if (effective.size === 0) return [];
+  const sorted = Array.from(effective).sort();
+  if (sorted.length === 1) return sorted;
+  const result: string[] = [];
+  let d = getWeekStart(sorted[0]);
+  const end = getWeekStart(sorted[sorted.length - 1]);
+  while (d <= end) {
+    result.push(getISOWeekKey(d));
+    d = new Date(d.getTime() + 7 * 86400000);
+  }
+  return result;
+}
+
+type ViewMode = "monthly" | "weekly";
+
+function periodKeyFn(view: ViewMode) {
+  return view === "monthly"
+    ? (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    : getISOWeekKey;
+}
+
+function periodLabelFn(view: ViewMode) {
+  return view === "monthly"
+    ? (key: string) => { const [y, m] = key.split("-"); return `${+m}/${y.slice(2)}`; }
+    : (key: string) => { const [yr, wk] = key.split("-W"); return `W${+wk}/${yr.slice(2)}`; };
+}
+
+function fillPeriodGaps(view: ViewMode, keys: string[], boundStart?: string, boundEnd?: string) {
+  return view === "monthly"
+    ? fillMonthGaps(keys, boundStart, boundEnd)
+    : fillWeekGaps(keys, boundStart, boundEnd);
+}
+
 function computeSourceData(
   transactions: SourceTransaction[],
-  selectedSources: string[]
+  selectedSources: string[],
+  view: ViewMode,
+  boundStart?: string,
+  boundEnd?: string
 ): { rows: Array<Record<string, string | number>>; totals: Record<string, number> } {
-  const monthMap = new Map<string, Map<string, number>>();
+  const periodMap = new Map<string, Map<string, number>>();
+  const toKey = periodKeyFn(view);
+  const toLabel = periodLabelFn(view);
 
   for (const t of transactions) {
     if (t.amount >= 0) continue;
     if (!selectedSources.includes(t.source)) continue;
-
-    const d = new Date(t.date);
-    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    if (!monthMap.has(key)) monthMap.set(key, new Map());
-    const sourceMap = monthMap.get(key)!;
+    const key = toKey(new Date(t.date));
+    if (!periodMap.has(key)) periodMap.set(key, new Map());
+    const sourceMap = periodMap.get(key)!;
     sourceMap.set(t.source, (sourceMap.get(t.source) ?? 0) + Math.abs(t.amount));
   }
 
-  const sortedKeys = fillMonthGaps(Array.from(monthMap.keys()));
-  const totals: Record<string, number> = Object.fromEntries(
-    selectedSources.map((s) => [s, 0])
-  );
+  const sortedKeys = fillPeriodGaps(view, Array.from(periodMap.keys()), boundStart, boundEnd);
+  const totals: Record<string, number> = Object.fromEntries(selectedSources.map((s) => [s, 0]));
 
   const rows = sortedKeys.map((key) => {
-    const [year, month] = key.split("-");
-    const row: Record<string, string | number> = { month: `${+month}/${year.slice(2)}` };
+    const row: Record<string, string | number> = { month: toLabel(key) };
     for (const source of selectedSources) {
-      const amount = monthMap.get(key)?.get(source) ?? 0;
+      const amount = periodMap.get(key)?.get(source) ?? 0;
       row[source] = amount;
       totals[source] += amount;
     }
@@ -89,31 +141,31 @@ function computeSourceData(
 
 function computeSourceCountData(
   transactions: SourceTransaction[],
-  selectedSources: string[]
+  selectedSources: string[],
+  view: ViewMode,
+  boundStart?: string,
+  boundEnd?: string
 ): { rows: Array<Record<string, string | number>>; totals: Record<string, number> } {
-  const monthMap = new Map<string, Map<string, number>>();
+  const periodMap = new Map<string, Map<string, number>>();
+  const toKey = periodKeyFn(view);
+  const toLabel = periodLabelFn(view);
 
   for (const t of transactions) {
     if (t.amount >= 0) continue;
     if (!selectedSources.includes(t.source)) continue;
-
-    const d = new Date(t.date);
-    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    if (!monthMap.has(key)) monthMap.set(key, new Map());
-    const sourceMap = monthMap.get(key)!;
+    const key = toKey(new Date(t.date));
+    if (!periodMap.has(key)) periodMap.set(key, new Map());
+    const sourceMap = periodMap.get(key)!;
     sourceMap.set(t.source, (sourceMap.get(t.source) ?? 0) + 1);
   }
 
-  const sortedKeys = fillMonthGaps(Array.from(monthMap.keys()));
-  const totals: Record<string, number> = Object.fromEntries(
-    selectedSources.map((s) => [s, 0])
-  );
+  const sortedKeys = fillPeriodGaps(view, Array.from(periodMap.keys()), boundStart, boundEnd);
+  const totals: Record<string, number> = Object.fromEntries(selectedSources.map((s) => [s, 0]));
 
   const rows = sortedKeys.map((key) => {
-    const [year, month] = key.split("-");
-    const row: Record<string, string | number> = { month: `${+month}/${year.slice(2)}` };
+    const row: Record<string, string | number> = { month: toLabel(key) };
     for (const source of selectedSources) {
-      const count = monthMap.get(key)?.get(source) ?? 0;
+      const count = periodMap.get(key)?.get(source) ?? 0;
       row[source] = count;
       totals[source] += count;
     }
@@ -127,7 +179,7 @@ type ChartMode = "grouped" | "stacked";
 
 function GroupedBarsIcon({ active }: { active: boolean }) {
   return (
-    <svg width="30" height="18" viewBox="0 0 30 18" aria-hidden className={active ? "opacity-100" : "opacity-35"}>
+    <svg width="45" height="27" viewBox="0 0 30 18" aria-hidden className={active ? "opacity-100" : "opacity-35"}>
       <rect x="1"  y="7"  width="4" height="10" rx="1" fill="#3b82f6" />
       <rect x="6"  y="3"  width="4" height="14" rx="1" fill="#ec4899" />
       <rect x="16" y="10" width="4" height="7"  rx="1" fill="#3b82f6" />
@@ -138,7 +190,7 @@ function GroupedBarsIcon({ active }: { active: boolean }) {
 
 function StackedBarsIcon({ active }: { active: boolean }) {
   return (
-    <svg width="30" height="18" viewBox="0 0 30 18" aria-hidden className={active ? "opacity-100" : "opacity-35"}>
+    <svg width="45" height="27" viewBox="0 0 30 18" aria-hidden className={active ? "opacity-100" : "opacity-35"}>
       {/* Group 1 */}
       <rect x="1"  y="10" width="11" height="7" rx="0" fill="#ec4899" />
       <rect x="1"  y="5"  width="11" height="5" rx="1" fill="#3b82f6" />
@@ -159,6 +211,7 @@ function StackedTotalLabels({
   const xScale = useXAxisScale() as any;
   const yScale = useYAxisScale() as any;
   if (!xScale || !yScale) return null;
+  if (chartData.length > 40) return null;
 
   return (
     <g>
@@ -200,6 +253,7 @@ function StackedTotalCountLabels({
   const xScale = useXAxisScale() as any;
   const yScale = useYAxisScale() as any;
   if (!xScale || !yScale) return null;
+  if (chartData.length > 40) return null;
 
   return (
     <g>
@@ -225,19 +279,23 @@ function StackedTotalCountLabels({
   );
 }
 
-export function SpendingBySourceSection({ allSources, transactions, cleanedData }: Props) {
+export function SpendingBySourceSection({ allSources, transactions, cleanedData, periodBoundStart, periodBoundEnd }: Props) {
   const router = useRouter();
 
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [view, setView] = useState<ViewMode>("monthly");
   const [chartMode, setChartMode] = useState<ChartMode>("stacked");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
   const [sortBy, setSortBy] = useState<"amount" | "name" | "items">("amount");
   const [mounted, setMounted] = useState(false);
+
+  const [spendingTableExpanded, setSpendingTableExpanded] = useState(true);
+  const [countTableExpanded, setCountTableExpanded] = useState(true);
 
   // Inline edit state (modal only, cleaned-data mode only)
   const [hoveredSource, setHoveredSource] = useState<string | null>(null);
@@ -389,12 +447,28 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData 
     [selectedSources.join("\x00")]
   );
 
+  // Global weekly bounds from all spending transactions so the weekly timeline
+  // stays consistent regardless of which source is selected.
+  const weeklyBounds = useMemo(() => {
+    const keys = transactions
+      .filter((t) => t.amount < 0)
+      .map((t) => getISOWeekKey(new Date(t.date)));
+    if (keys.length === 0) return { start: undefined, end: undefined };
+    return {
+      start: keys.reduce((a, b) => (a < b ? a : b)),
+      end: keys.reduce((a, b) => (a > b ? a : b)),
+    };
+  }, [transactions]);
+
+  const activeBoundStart = view === "monthly" ? periodBoundStart : weeklyBounds.start;
+  const activeBoundEnd   = view === "monthly" ? periodBoundEnd   : weeklyBounds.end;
+
   const { rows: chartData, totals } = useMemo(
     () =>
       selectedSources.length > 0
-        ? computeSourceData(transactions, selectedSources)
+        ? computeSourceData(transactions, selectedSources, view, activeBoundStart, activeBoundEnd)
         : { rows: [], totals: {} },
-    [transactions, selectedSources]
+    [transactions, selectedSources, view, activeBoundStart, activeBoundEnd]
   );
 
   const hasData = chartData.length > 0;
@@ -409,9 +483,9 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData 
   const { rows: countChartData, totals: countTotals } = useMemo(
     () =>
       selectedSources.length > 0
-        ? computeSourceCountData(transactions, selectedSources)
+        ? computeSourceCountData(transactions, selectedSources, view, activeBoundStart, activeBoundEnd)
         : { rows: [], totals: {} },
-    [transactions, selectedSources]
+    [transactions, selectedSources, view, activeBoundStart, activeBoundEnd]
   );
 
   const countMonthTotals = useMemo(
@@ -756,17 +830,34 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData 
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Right controls */}
-          <div className="flex shrink-0 flex-col items-end gap-2">
             <button
               onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-muted/20 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-md border border-border bg-muted/20 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground self-start"
             >
               <List className="h-3.5 w-3.5" />
               See all sources
             </button>
+          </div>
+
+          {/* Right controls */}
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            {/* Monthly / Weekly toggle */}
+            <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">
+              {(["monthly", "weekly"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
+                    view === v
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {v === "monthly" ? "Monthly" : "Weekly"}
+                </button>
+              ))}
+            </div>
+
             {/* Chart mode toggle */}
             <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">
               {(["grouped", "stacked"] as const).map((mode) => (
@@ -925,88 +1016,103 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData 
             </div>
 
             {/* Monthly totals table */}
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-max text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                      Month
-                    </th>
-                    {selectedSources.map((source) => (
-                      <th
-                        key={source}
-                        className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-medium text-muted-foreground transition-opacity cursor-default"
-                        style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
-                        onMouseEnter={() => setHoveredSource(source)}
-                        onMouseLeave={() => setHoveredSource(null)}
-                      >
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: colorMap[source] }}
-                          />
-                          <span className="max-w-[140px] truncate">{source}</span>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {chartData.map((row, i) => (
-                    <tr
-                      key={row.month as string}
-                      className={`transition-colors ${
-                        hoveredMonth === row.month
-                          ? "bg-primary/10"
-                          : i % 2 !== 0
-                          ? "bg-muted/20"
-                          : ""
-                      }`}
-                    >
-                      <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted-foreground">
-                        {row.month}
-                      </td>
-                      {selectedSources.map((source) => (
-                        <td
-                          key={source}
-                          className="whitespace-nowrap px-4 py-2 text-right text-xs tabular-nums transition-opacity cursor-default"
-                          style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
-                          onMouseEnter={() => setHoveredSource(source)}
-                          onMouseLeave={() => setHoveredSource(null)}
+            <div className="rounded-lg border border-border">
+              <button
+                onClick={() => setSpendingTableExpanded((v) => !v)}
+                className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+              >
+                <span className="text-xs font-medium text-muted-foreground">Monthly breakdown</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                    spendingTableExpanded ? "" : "-rotate-90"
+                  }`}
+                />
+              </button>
+              {spendingTableExpanded && (
+                <div className="overflow-x-auto border-t border-border">
+                  <table className="w-full min-w-max text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                          Month
+                        </th>
+                        {selectedSources.map((source) => (
+                          <th
+                            key={source}
+                            className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-medium text-muted-foreground transition-opacity cursor-default"
+                            style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
+                            onMouseEnter={() => setHoveredSource(source)}
+                            onMouseLeave={() => setHoveredSource(null)}
+                          >
+                            <div className="flex items-center justify-end gap-1.5">
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: colorMap[source] }}
+                              />
+                              <span className="max-w-[140px] truncate">{source}</span>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chartData.map((row, i) => (
+                        <tr
+                          key={row.month as string}
+                          className={`transition-colors ${
+                            hoveredMonth === row.month
+                              ? "bg-primary/10"
+                              : i % 2 !== 0
+                              ? "bg-muted/20"
+                              : ""
+                          }`}
                         >
-                          {(row[source] as number) > 0 ? (
-                            formatCurrency(row[source] as number)
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
+                          <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted-foreground">
+                            {row.month}
+                          </td>
+                          {selectedSources.map((source) => (
+                            <td
+                              key={source}
+                              className="whitespace-nowrap px-4 py-2 text-right text-xs tabular-nums transition-opacity cursor-default"
+                              style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
+                              onMouseEnter={() => setHoveredSource(source)}
+                              onMouseLeave={() => setHoveredSource(null)}
+                            >
+                              {(row[source] as number) > 0 ? (
+                                formatCurrency(row[source] as number)
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-border bg-muted/30 font-semibold">
-                    <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
-                      Total
-                    </td>
-                    {selectedSources.map((source) => (
-                      <td
-                        key={source}
-                        className="whitespace-nowrap px-4 py-2.5 text-right text-xs tabular-nums transition-opacity cursor-default"
-                        style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
-                        onMouseEnter={() => setHoveredSource(source)}
-                        onMouseLeave={() => setHoveredSource(null)}
-                      >
-                        {formatCurrency(totals[source] ?? 0)}
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border bg-muted/30 font-semibold">
+                        <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
+                          Total
+                        </td>
+                        {selectedSources.map((source) => (
+                          <td
+                            key={source}
+                            className="whitespace-nowrap px-4 py-2.5 text-right text-xs tabular-nums transition-opacity cursor-default"
+                            style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
+                            onMouseEnter={() => setHoveredSource(source)}
+                            onMouseLeave={() => setHoveredSource(null)}
+                          >
+                            {formatCurrency(totals[source] ?? 0)}
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* ── Transaction count section ─────────────────────────────── */}
-            <h3 className="mt-8 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            <h3 className="mt-6 text-sm font-medium uppercase tracking-wide text-muted-foreground">
               Transaction count by source
             </h3>
 
@@ -1099,84 +1205,99 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData 
             </div>
 
             {/* Monthly count table */}
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-max text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
-                      Month
-                    </th>
-                    {selectedSources.map((source) => (
-                      <th
-                        key={source}
-                        className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-medium text-muted-foreground transition-opacity cursor-default"
-                        style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
-                        onMouseEnter={() => setHoveredSource(source)}
-                        onMouseLeave={() => setHoveredSource(null)}
-                      >
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: colorMap[source] }}
-                          />
-                          <span className="max-w-[140px] truncate">{source}</span>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {countChartData.map((row, i) => (
-                    <tr
-                      key={row.month as string}
-                      className={`transition-colors ${
-                        hoveredMonth === row.month
-                          ? "bg-primary/10"
-                          : i % 2 !== 0
-                          ? "bg-muted/20"
-                          : ""
-                      }`}
-                    >
-                      <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted-foreground">
-                        {row.month}
-                      </td>
-                      {selectedSources.map((source) => (
-                        <td
-                          key={source}
-                          className="whitespace-nowrap px-4 py-2 text-right text-xs tabular-nums transition-opacity cursor-default"
-                          style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
-                          onMouseEnter={() => setHoveredSource(source)}
-                          onMouseLeave={() => setHoveredSource(null)}
+            <div className="rounded-lg border border-border">
+              <button
+                onClick={() => setCountTableExpanded((v) => !v)}
+                className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+              >
+                <span className="text-xs font-medium text-muted-foreground">Monthly breakdown</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                    countTableExpanded ? "" : "-rotate-90"
+                  }`}
+                />
+              </button>
+              {countTableExpanded && (
+                <div className="overflow-x-auto border-t border-border">
+                  <table className="w-full min-w-max text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                          Month
+                        </th>
+                        {selectedSources.map((source) => (
+                          <th
+                            key={source}
+                            className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-medium text-muted-foreground transition-opacity cursor-default"
+                            style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
+                            onMouseEnter={() => setHoveredSource(source)}
+                            onMouseLeave={() => setHoveredSource(null)}
+                          >
+                            <div className="flex items-center justify-end gap-1.5">
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: colorMap[source] }}
+                              />
+                              <span className="max-w-[140px] truncate">{source}</span>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {countChartData.map((row, i) => (
+                        <tr
+                          key={row.month as string}
+                          className={`transition-colors ${
+                            hoveredMonth === row.month
+                              ? "bg-primary/10"
+                              : i % 2 !== 0
+                              ? "bg-muted/20"
+                              : ""
+                          }`}
                         >
-                          {(row[source] as number) > 0 ? (
-                            (row[source] as number).toLocaleString()
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
+                          <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted-foreground">
+                            {row.month}
+                          </td>
+                          {selectedSources.map((source) => (
+                            <td
+                              key={source}
+                              className="whitespace-nowrap px-4 py-2 text-right text-xs tabular-nums transition-opacity cursor-default"
+                              style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
+                              onMouseEnter={() => setHoveredSource(source)}
+                              onMouseLeave={() => setHoveredSource(null)}
+                            >
+                              {(row[source] as number) > 0 ? (
+                                (row[source] as number).toLocaleString()
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-border bg-muted/30 font-semibold">
-                    <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
-                      Total
-                    </td>
-                    {selectedSources.map((source) => (
-                      <td
-                        key={source}
-                        className="whitespace-nowrap px-4 py-2.5 text-right text-xs tabular-nums transition-opacity cursor-default"
-                        style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
-                        onMouseEnter={() => setHoveredSource(source)}
-                        onMouseLeave={() => setHoveredSource(null)}
-                      >
-                        {(countTotals[source] ?? 0).toLocaleString()}
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border bg-muted/30 font-semibold">
+                        <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
+                          Total
+                        </td>
+                        {selectedSources.map((source) => (
+                          <td
+                            key={source}
+                            className="whitespace-nowrap px-4 py-2.5 text-right text-xs tabular-nums transition-opacity cursor-default"
+                            style={{ opacity: hoveredSource && hoveredSource !== source ? 0.35 : 1 }}
+                            onMouseEnter={() => setHoveredSource(source)}
+                            onMouseLeave={() => setHoveredSource(null)}
+                          >
+                            {(countTotals[source] ?? 0).toLocaleString()}
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -73,7 +73,7 @@ export function MiniCategoryPieChart({ data }: Props) {
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius="40%"
+              innerRadius="52%"
               outerRadius="90%"
               paddingAngle={0}
               stroke="none"

@@ -98,7 +98,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   const summary = computeSummary(transactions);
   const byCategory = computeByCategory(transactions);
-  const monthlyData = computeStackedByMonth(transactions, includeIncome);
+  const monthlyData = computeStackedByMonth(transactions, includeIncome, since, until);
   const weeklyData = computeStackedByWeek(transactions, includeIncome);
 
   // Mini bar chart: last 12 months
@@ -130,6 +130,29 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       sourceTxns.filter((t) => t.amount < 0).map((t) => t.source)
     )
   ).sort();
+
+  const toMonthKey = (d: Date) =>
+    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+
+  // Global data range from all spending transactions so the timeline in
+  // SpendingBySource stays consistent regardless of which source is selected.
+  const spendingKeys = sourceTxns
+    .filter((t) => t.amount < 0)
+    .map((t) => toMonthKey(new Date(t.date)));
+  const globalDataStart = spendingKeys.length > 0
+    ? spendingKeys.reduce((a, b) => (a < b ? a : b))
+    : undefined;
+  const globalDataEnd = spendingKeys.length > 0
+    ? spendingKeys.reduce((a, b) => (a > b ? a : b))
+    : undefined;
+
+  // Effective bounds: period start/end take priority; global data range is the fallback.
+  const periodBoundStart = since ? toMonthKey(since) : globalDataStart;
+  const periodBoundEnd = until
+    ? toMonthKey(until)
+    : since
+    ? toMonthKey(new Date())
+    : globalDataEnd;
 
   const isEmpty = transactions.length === 0;
 
@@ -168,7 +191,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
             <SummaryCharts barData={last12} pieData={miniPieData} />
           </ClientOnly>
 
-          <WaveDivider className="my-8" />
+          <WaveDivider className="my-8" scrollOffset={0} />
 
           {/* Section 2: Timeline analysis */}
           <div className="rounded-xl border border-border bg-card p-5">
@@ -181,7 +204,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
             </ClientOnly>
           </div>
 
-          <WaveDivider className="my-8" />
+          <WaveDivider className="my-8" scrollOffset={1257} />
 
           {/* Section 3: Category analysis */}
           <div className="rounded-xl border border-border bg-card p-5">
@@ -193,7 +216,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
             </ClientOnly>
           </div>
 
-          <WaveDivider className="my-8" />
+          <WaveDivider className="my-8" scrollOffset={2513} />
 
           {/* Section 4: Spending by source */}
           <div className="rounded-xl border border-border bg-card p-5">
@@ -202,6 +225,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
                 allSources={allSources}
                 transactions={sourceTxns}
                 cleanedData={cleanedData}
+                periodBoundStart={periodBoundStart}
+                periodBoundEnd={periodBoundEnd}
               />
             </ClientOnly>
           </div>

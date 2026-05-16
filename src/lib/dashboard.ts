@@ -86,9 +86,13 @@ export interface StackedSpendingData {
   categories: string[];
 }
 
-function fillMonthGaps(keys: string[]): string[] {
-  if (keys.length < 2) return [...keys].sort();
-  const sorted = [...keys].sort();
+function fillMonthGaps(keys: string[], boundStart?: string, boundEnd?: string): string[] {
+  const effective = new Set(keys);
+  if (boundStart) effective.add(boundStart);
+  if (boundEnd) effective.add(boundEnd);
+  if (effective.size === 0) return [];
+  const sorted = Array.from(effective).sort();
+  if (sorted.length === 1) return sorted;
   const [startY, startM] = sorted[0].split("-").map(Number);
   const [endY, endM] = sorted[sorted.length - 1].split("-").map(Number);
   const result: string[] = [];
@@ -106,14 +110,16 @@ function buildStackedData(
   allCategories: Set<string>,
   includeIncome: boolean,
   labelFn: (key: string) => string,
-  fillGaps = false
+  fillGaps = false,
+  boundStart?: string,
+  boundEnd?: string
 ): StackedSpendingData {
   const allKeys = new Set([
     ...Array.from(periodMap.keys()),
     ...(includeIncome ? Array.from(incomeMap.keys()) : []),
   ]);
   const sortedKeys = fillGaps
-    ? fillMonthGaps(Array.from(allKeys))
+    ? fillMonthGaps(Array.from(allKeys), boundStart, boundEnd)
     : Array.from(allKeys).sort();
   const categoriesArr = Array.from(allCategories);
 
@@ -136,9 +142,14 @@ function buildStackedData(
   return { periods, categories };
 }
 
+const toMonthKey = (d: Date) =>
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+
 export function computeStackedByMonth(
   txns: TransactionForDashboard[],
-  includeIncome: boolean
+  includeIncome: boolean,
+  since?: Date | null,
+  until?: Date | null
 ): StackedSpendingData {
   const periodMap = new Map<string, Map<string, number>>();
   const incomeMap = new Map<string, number>();
@@ -146,7 +157,7 @@ export function computeStackedByMonth(
 
   for (const t of txns) {
     const d = new Date(t.transactionDate);
-    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const key = toMonthKey(d);
     if (t.amount > 0) {
       if (includeIncome) incomeMap.set(key, (incomeMap.get(key) ?? 0) + t.amount);
       continue;
@@ -157,13 +168,17 @@ export function computeStackedByMonth(
     periodMap.get(key)!.set(cat, (periodMap.get(key)!.get(cat) ?? 0) + Math.abs(t.amount));
   }
 
+  // Extend the rendered range to cover the full selected period, not just months with data.
+  const boundStart = since ? toMonthKey(since) : undefined;
+  const boundEnd = until ? toMonthKey(until) : (since ? toMonthKey(new Date()) : undefined);
+
   return buildStackedData(periodMap, incomeMap, allCategories, includeIncome, (key) => {
     const [year, month] = key.split("-");
     return `${+month}/${year.slice(2)}`;
-  }, true);
+  }, true, boundStart, boundEnd);
 }
 
-function getISOWeekKey(date: Date): string {
+export function getISOWeekKey(date: Date): string {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const day = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - day);

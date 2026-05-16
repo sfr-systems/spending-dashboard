@@ -28,6 +28,7 @@ function StackedCategoryTotals({
   const xScale = useXAxisScale() as any;
   const yScale = useYAxisScale() as any;
   if (!xScale || !yScale) return null;
+  if (periods.length > 40) return null;
 
   return (
     <g>
@@ -288,7 +289,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
                     isAnimationActive={false}
                   />
                 )}
-                <StackedCategoryTotals periods={periods} periodTotals={periodTotals} />
+                {!isMobile && <StackedCategoryTotals periods={periods} periodTotals={periodTotals} />}
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -147,7 +147,7 @@ export function AccountSection() {
       </div>
 
       {/* Row 2 — icon buttons */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center gap-1">
         <ThemeToggle />
         <Button
           variant="ghost"

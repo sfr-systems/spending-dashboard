@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Menu, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,15 +33,6 @@ export function MobileNav() {
               </SheetTitle>
             </SheetHeader>
             <NavLinks onNavigate={() => setOpen(false)} />
-            <div className="mt-auto px-3 pt-4">
-              <Link
-                href="/privacy"
-                onClick={() => setOpen(false)}
-                className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Privacy policy
-              </Link>
-            </div>
           </div>
         </SheetContent>
       </Sheet>

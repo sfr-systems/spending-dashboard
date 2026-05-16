@@ -1,7 +1,8 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, Camera, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { LogOut, User, Camera, Trash2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useState, useEffect, useRef } from "react";
@@ -147,6 +148,11 @@ export function AccountSection() {
 
       <div className="flex items-center gap-1 shrink-0">
         <ThemeToggle />
+        <Button asChild variant="ghost" size="icon" aria-label="Security settings" className="h-8 w-8">
+          <Link href="/security">
+            <Shield className="h-4 w-4" />
+          </Link>
+        </Button>
         <Button
           variant="ghost"
           size="icon"

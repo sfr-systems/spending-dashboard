@@ -17,30 +17,31 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
+type SourceOption = { id: string; label: string; kind: "csv" | "bank" };
+
 interface TransactionsTableProps {
   transactions: TransactionRow[];
   categories: string[];
-  files: { id: string; originalFilename: string }[];
+  sources: SourceOption[];
 }
 
 const PAGE_SIZE = 50;
 
-export function TransactionsTable({ transactions, categories, files }: TransactionsTableProps) {
+export function TransactionsTable({ transactions, categories, sources }: TransactionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "transactionDate", desc: true },
   ]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [fileFilter, setFileFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
 
-  // Apply category and file filters manually since they use custom select state
   const filtered = useMemo(() => {
     let rows = transactions;
     if (categoryFilter) rows = rows.filter((r) => r.category === categoryFilter);
-    if (fileFilter) rows = rows.filter((r) => r.fileId === fileFilter);
+    if (sourceFilter) rows = rows.filter((r) => r.sourceId === sourceFilter);
     return rows;
-  }, [transactions, categoryFilter, fileFilter]);
+  }, [transactions, categoryFilter, sourceFilter]);
 
   const table = useReactTable({
     data: filtered,
@@ -57,13 +58,16 @@ export function TransactionsTable({ transactions, categories, files }: Transacti
     initialState: { pagination: { pageSize: PAGE_SIZE } },
   });
 
-  const hasFilters = globalFilter || categoryFilter || fileFilter;
+  const hasFilters = globalFilter || categoryFilter || sourceFilter;
 
   function clearFilters() {
     setGlobalFilter("");
     setCategoryFilter("");
-    setFileFilter("");
+    setSourceFilter("");
   }
+
+  const bankSources = sources.filter((s) => s.kind === "bank");
+  const csvSources = sources.filter((s) => s.kind === "csv");
 
   const { pageIndex, pageSize } = table.getState().pagination;
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -104,19 +108,32 @@ export function TransactionsTable({ transactions, categories, files }: Transacti
         </Select>
 
         <Select
-          value={fileFilter}
+          value={sourceFilter}
           onChange={(e) => {
-            setFileFilter(e.target.value);
+            setSourceFilter(e.target.value);
             table.setPageIndex(0);
           }}
-          className="w-[180px]"
+          className="w-[200px]"
         >
-          <option value="">All files</option>
-          {files.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.originalFilename}
-            </option>
-          ))}
+          <option value="">All sources</option>
+          {bankSources.length > 0 && (
+            <optgroup label="Connected banks">
+              {bankSources.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {csvSources.length > 0 && (
+            <optgroup label="CSV files">
+              {csvSources.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </Select>
 
         {hasFilters && (

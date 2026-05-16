@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Snowflake, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteFileDialog } from "./DeleteFileDialog";
@@ -15,6 +16,7 @@ interface FileRow {
   uploadStatus: string;
   parsedTransactionCount: number;
   parseError: string | null;
+  frozen: boolean;
   createdAt: Date;
 }
 
@@ -35,11 +37,28 @@ function StatusBadge({ status, parseError }: { status: string; parseError: strin
 }
 
 export function FileTable({ files }: FileTableProps) {
+  const router = useRouter();
   const [dialogState, setDialogState] = useState<{ open: boolean; id: string; name: string }>({
     open: false,
     id: "",
     name: "",
   });
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  async function toggleFrozen(id: string, frozen: boolean) {
+    setPendingId(id);
+    try {
+      const res = await fetch(`/api/files/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ frozen: !frozen }),
+      });
+      if (!res.ok) throw new Error("Toggle failed");
+      router.refresh();
+    } finally {
+      setPendingId(null);
+    }
+  }
 
   if (files.length === 0) {
     return (
@@ -73,9 +92,22 @@ export function FileTable({ files }: FileTableProps) {
           </thead>
           <tbody className="divide-y divide-border">
             {files.map((file) => (
-              <tr key={file.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 font-medium truncate max-w-[180px] md:max-w-xs">
-                  {file.originalFilename}
+              <tr
+                key={file.id}
+                className={`transition-colors hover:bg-muted/20 ${file.frozen ? "opacity-60" : ""}`}
+              >
+                <td className="max-w-[180px] truncate px-4 py-3 font-medium md:max-w-xs">
+                  <span className="inline-flex items-center gap-2">
+                    {file.originalFilename}
+                    {file.frozen && (
+                      <Tooltip content="Transactions from this file are excluded from your transactions list and dashboard.">
+                        <Badge variant="secondary" className="gap-1">
+                          <Snowflake className="h-3 w-3" />
+                          Frozen
+                        </Badge>
+                      </Tooltip>
+                    )}
+                  </span>
                 </td>
                 <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">
                   {formatDate(file.createdAt)}
@@ -90,6 +122,25 @@ export function FileTable({ files }: FileTableProps) {
                   {file.parsedTransactionCount > 0 ? file.parsedTransactionCount.toLocaleString() : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
+                  <Tooltip
+                    content={
+                      file.frozen
+                        ? "Unfreeze: include this file's transactions again"
+                        : "Freeze: hide this file's transactions without deleting"
+                    }
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={file.frozen ? `Unfreeze ${file.originalFilename}` : `Freeze ${file.originalFilename}`}
+                      disabled={pendingId === file.id}
+                      onClick={() => toggleFrozen(file.id, file.frozen)}
+                    >
+                      <Snowflake
+                        className={`h-4 w-4 ${file.frozen ? "text-sky-500" : "text-muted-foreground"}`}
+                      />
+                    </Button>
+                  </Tooltip>
                   <Button
                     variant="ghost"
                     size="icon"

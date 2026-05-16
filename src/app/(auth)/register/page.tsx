@@ -112,6 +112,13 @@ export default function RegisterPage() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating account…" : "Create account"}
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            By creating an account, you agree to our{" "}
+            <Link href="/privacy" className="underline-offset-4 hover:text-foreground hover:underline">
+              privacy policy
+            </Link>
+            .
+          </p>
           <p className="text-sm text-muted-foreground text-center">
             Already have an account?{" "}
             <Link

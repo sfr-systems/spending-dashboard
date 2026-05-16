@@ -20,6 +20,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,17 +33,30 @@ export default function LoginPage() {
     const result = await signIn("credentials", {
       email: email.trim(),
       password,
+      mfaCode: mfaCode.trim(),
       redirect: false,
     });
 
     setLoading(false);
 
+    if (result?.error === "MFA_REQUIRED") {
+      setMfaRequired(true);
+      setError("");
+      return;
+    }
+    if (result?.error === "MFA_INVALID") {
+      setMfaRequired(true);
+      setError("That code didn't work. Try again, or use a backup code.");
+      setMfaCode("");
+      return;
+    }
     if (result?.error) {
       setError("Invalid email or password. Please try again.");
-    } else {
-      router.push("/dashboard");
-      router.refresh();
+      return;
     }
+
+    router.push("/dashboard");
+    router.refresh();
   }
 
   return (
@@ -49,7 +64,9 @@ export default function LoginPage() {
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
         <CardDescription>
-          Enter your email and password to access your account.
+          {mfaRequired
+            ? "Enter the 6-digit code from your authenticator app, or a backup code."
+            : "Enter your email and password to access your account."}
         </CardDescription>
       </CardHeader>
 
@@ -71,6 +88,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              disabled={mfaRequired}
             />
           </div>
 
@@ -84,21 +102,65 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              disabled={mfaRequired}
             />
           </div>
+
+          {mfaRequired && (
+            <div className="space-y-1.5">
+              <Label htmlFor="mfaCode">Authentication code</Label>
+              <Input
+                id="mfaCode"
+                type="text"
+                inputMode="text"
+                autoComplete="one-time-code"
+                autoFocus
+                required
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                placeholder="123456 or backup code"
+              />
+              <p className="text-xs text-muted-foreground">
+                6-digit code from your authenticator app, or a one-time backup code.
+              </p>
+            </div>
+          )}
         </CardContent>
 
         <CardFooter className="flex-col gap-3">
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+            {loading
+              ? "Signing in…"
+              : mfaRequired
+              ? "Verify and sign in"
+              : "Sign in"}
           </Button>
-          <p className="text-sm text-muted-foreground text-center">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="font-medium text-foreground underline-offset-4 hover:underline"
+          {mfaRequired ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMfaRequired(false);
+                setMfaCode("");
+                setError("");
+              }}
+              className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
             >
-              Create one
+              Use a different account
+            </button>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/register"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                Create one
+              </Link>
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground text-center">
+            <Link href="/privacy" className="underline-offset-4 hover:text-foreground hover:underline">
+              Privacy policy
             </Link>
           </p>
         </CardFooter>

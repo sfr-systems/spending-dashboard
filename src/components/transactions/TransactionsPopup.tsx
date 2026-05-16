@@ -18,7 +18,7 @@ interface TransactionsPopupProps {
 interface TransactionData {
   transactions: TransactionRow[];
   categories: string[];
-  files: { id: string; originalFilename: string }[];
+  sources: { id: string; label: string; kind: "csv" | "bank" }[];
 }
 
 export function TransactionsPopup({ open, onOpenChange }: TransactionsPopupProps) {
@@ -75,7 +75,7 @@ export function TransactionsPopup({ open, onOpenChange }: TransactionsPopupProps
             <TransactionsTable
               transactions={data.transactions}
               categories={data.categories}
-              files={data.files}
+              sources={data.sources}
             />
           )}
         </div>

@@ -1,12 +1,13 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Banknote, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export type TransactionRow = {
   id: string;
+  source: "csv" | "plaid";
   transactionDate: string; // ISO string
   description: string;
   cleanedDescription: string;
@@ -16,8 +17,8 @@ export type TransactionRow = {
   derivedCategory: string;
   transactionType: string;
   accountName: string | null;
-  filename: string;
-  fileId: string;
+  sourceId: string | null;
+  sourceLabel: string | null;
 };
 
 function SortHeader({
@@ -134,12 +135,18 @@ export const columns: ColumnDef<TransactionRow>[] = [
     },
   },
   {
-    accessorKey: "filename",
-    header: "Source file",
-    cell: ({ getValue }) => (
-      <span className="max-w-[140px] truncate text-xs text-muted-foreground">
-        {getValue<string>()}
-      </span>
-    ),
+    accessorKey: "sourceLabel",
+    header: "Source",
+    cell: ({ row }) => {
+      const label = row.original.sourceLabel;
+      const isBank = row.original.source === "plaid";
+      const Icon = isBank ? Banknote : FileText;
+      return (
+        <span className="inline-flex max-w-[160px] items-center gap-1.5 truncate text-xs text-muted-foreground">
+          <Icon className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{label ?? "—"}</span>
+        </span>
+      );
+    },
   },
 ];

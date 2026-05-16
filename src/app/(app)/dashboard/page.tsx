@@ -28,10 +28,11 @@ import {
 export const metadata = { title: "Dashboard — SpendWise" };
 
 interface PageProps {
-  searchParams: { period?: string; income?: string; cleaned?: string; from?: string; to?: string };
+  searchParams: Promise<{ period?: string; income?: string; cleaned?: string; from?: string; to?: string }>;
 }
 
-export default async function DashboardPage({ searchParams }: PageProps) {
+export default async function DashboardPage(props: PageProps) {
+  const searchParams = await props.searchParams;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
@@ -70,6 +71,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const raw = await db.transaction.findMany({
     where: {
       userId: session.user.id,
+      NOT: { file: { frozen: true } },
       ...(since || until ? {
         transactionDate: {
           ...(since ? { gte: since } : {}),

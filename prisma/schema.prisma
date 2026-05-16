@@ -14,12 +14,27 @@ model User {
   email               String               @unique
   passwordHash        String?
   avatarDataUrl       String?
+  mfaSecretCiphertext String?
+  mfaEnabledAt        DateTime?
   files               UploadedFile[]
   transactions        Transaction[]
   sourceNameOverrides SourceNameOverride[]
   preferences         UserPreference?
+  plaidItems          PlaidItem[]
+  mfaBackupCodes      MfaBackupCode[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+}
+
+model MfaBackupCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model UserPreference {
@@ -52,6 +67,7 @@ model UploadedFile {
   fileSize               Int
   mimeType               String
   uploadStatus           String        @default("uploaded")
+  frozen                 Boolean       @default(false)
   rowCount               Int           @default(0)
   parsedTransactionCount Int           @default(0)
   parseError             String?
@@ -61,27 +77,70 @@ model UploadedFile {
 }
 
 model Transaction {
-  id              String       @id @default(cuid())
-  userId          String
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileId          String
-  file            UploadedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  transactionDate      DateTime
-  postedDate           DateTime?
-  description          String
-  cleanedDescription   String    @default("")
-  merchant             String?
-  amount               Decimal
-  category             String    @default("Uncategorized")
-  derivedCategory      String    @default("Uncategorized")
-  transactionType      String    @default("unknown")
-  accountName     String?
-  notes           String?
-  rawData         Json
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                 String        @id @default(cuid())
+  userId             String
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source             String        @default("csv")
+  fileId             String?
+  file               UploadedFile? @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  plaidAccountId     String?
+  plaidAccount       PlaidAccount? @relation(fields: [plaidAccountId], references: [id], onDelete: Cascade)
+  plaidTransactionId String?
+  transactionDate    DateTime
+  postedDate         DateTime?
+  description        String
+  cleanedDescription String        @default("")
+  merchant           String?
+  amount             Decimal
+  category           String        @default("Uncategorized")
+  derivedCategory    String        @default("Uncategorized")
+  transactionType    String        @default("unknown")
+  accountName        String?
+  notes              String?
+  rawData            Json
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
+  @@unique([userId, plaidTransactionId])
   @@index([userId, transactionDate])
   @@index([userId, category])
+  @@index([userId, source])
   @@index([fileId])
+  @@index([plaidAccountId])
+}
+
+model PlaidItem {
+  id                    String         @id @default(cuid())
+  userId                String
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaidItemId           String         @unique
+  institutionId         String?
+  institutionName       String
+  accessTokenCiphertext String
+  cursor                String?
+  status                String         @default("active")
+  lastSyncedAt          DateTime?
+  lastSyncError         String?
+  accounts              PlaidAccount[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+model PlaidAccount {
+  id             String        @id @default(cuid())
+  itemId         String
+  item           PlaidItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  plaidAccountId String        @unique
+  name           String
+  officialName   String?
+  mask           String?
+  type           String
+  subtype        String?
+  transactions   Transaction[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([itemId])
 }

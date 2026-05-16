@@ -53,7 +53,6 @@ Purpose:
 ## Non-Goals for MVP
 
 Do not implement these in the first version:
-- Plaid or direct bank integrations.
 - AI categorization.
 - Complex duplicate detection.
 - Multi-currency support.
@@ -61,6 +60,18 @@ Do not implement these in the first version:
 - Budget planning.
 - Mobile native app.
 - Production-grade financial compliance beyond reasonable security best practices.
+- Admin or super-user roles. All data access is per-user; there is no impersonation or cross-user view.
+
+## Bank Connections (Plaid)
+
+The app supports connecting bank accounts via Plaid in addition to CSV upload. The two sources coexist: transactions from CSV and Plaid live in the same table, distinguished by a `source` field.
+
+Rules:
+- Plaid access is read-only by design (Plaid's Chase OAuth integration does not grant write/move-money scopes).
+- The app never sees or stores user bank credentials. Plaid handles the credential exchange.
+- Plaid access tokens are encrypted at rest with AES-256-GCM using `PLAID_TOKEN_ENCRYPTION_KEY`. Never log tokens or store them in plaintext.
+- All Plaid queries are scoped to the authenticated `userId`, same isolation pattern as CSV files and transactions.
+- This is a personal/friends-and-family app. Use Plaid's Sandbox tier for development and Limited Production for live use. Do not request commercial Plaid tiers.
 
 ## Design Style
 

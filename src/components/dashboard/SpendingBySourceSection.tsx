@@ -37,6 +37,20 @@ function formatCurrency(v: number) {
   }).format(v);
 }
 
+function fillMonthGaps(keys: string[]): string[] {
+  if (keys.length < 2) return [...keys].sort();
+  const sorted = [...keys].sort();
+  const [startY, startM] = sorted[0].split("-").map(Number);
+  const [endY, endM] = sorted[sorted.length - 1].split("-").map(Number);
+  const result: string[] = [];
+  let y = startY, m = startM;
+  while (y < endY || (y === endY && m <= endM)) {
+    result.push(`${y}-${String(m).padStart(2, "0")}`);
+    if (++m > 12) { m = 1; y++; }
+  }
+  return result;
+}
+
 function computeSourceData(
   transactions: SourceTransaction[],
   selectedSources: string[]
@@ -54,7 +68,7 @@ function computeSourceData(
     sourceMap.set(t.source, (sourceMap.get(t.source) ?? 0) + Math.abs(t.amount));
   }
 
-  const sortedKeys = Array.from(monthMap.keys()).sort();
+  const sortedKeys = fillMonthGaps(Array.from(monthMap.keys()));
   const totals: Record<string, number> = Object.fromEntries(
     selectedSources.map((s) => [s, 0])
   );
@@ -90,7 +104,7 @@ function computeSourceCountData(
     sourceMap.set(t.source, (sourceMap.get(t.source) ?? 0) + 1);
   }
 
-  const sortedKeys = Array.from(monthMap.keys()).sort();
+  const sortedKeys = fillMonthGaps(Array.from(monthMap.keys()));
   const totals: Record<string, number> = Object.fromEntries(
     selectedSources.map((s) => [s, 0])
   );
@@ -218,7 +232,7 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData 
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [chartMode, setChartMode] = useState<ChartMode>("grouped");
+  const [chartMode, setChartMode] = useState<ChartMode>("stacked");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
@@ -236,6 +250,44 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData 
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const allSourcesRef = useRef(allSources);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRun = useRef(true);
+
+  useEffect(() => { allSourcesRef.current = allSources; }, [allSources]);
+
+  // Load saved preferences on mount
+  useEffect(() => {
+    fetch("/api/preferences")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: Record<string, unknown> | null) => {
+        const prefs = data?.spendingBySource as { chartMode?: string; selectedSources?: unknown } | undefined;
+        if (!prefs) return;
+        if (prefs.chartMode === "grouped" || prefs.chartMode === "stacked") {
+          setChartMode(prefs.chartMode);
+        }
+        if (Array.isArray(prefs.selectedSources)) {
+          const valid = (prefs.selectedSources as unknown[])
+            .filter((s): s is string => typeof s === "string" && allSourcesRef.current.includes(s));
+          setSelectedSources(valid);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Save preferences whenever chartMode or selectedSources changes (debounced)
+  useEffect(() => {
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spendingBySource: { chartMode, selectedSources } }),
+      }).catch(() => {});
+    }, 600);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [chartMode, selectedSources]);
 
   useEffect(() => { setMounted(true); }, []);
 

@@ -86,18 +86,35 @@ export interface StackedSpendingData {
   categories: string[];
 }
 
+function fillMonthGaps(keys: string[]): string[] {
+  if (keys.length < 2) return [...keys].sort();
+  const sorted = [...keys].sort();
+  const [startY, startM] = sorted[0].split("-").map(Number);
+  const [endY, endM] = sorted[sorted.length - 1].split("-").map(Number);
+  const result: string[] = [];
+  let y = startY, m = startM;
+  while (y < endY || (y === endY && m <= endM)) {
+    result.push(`${y}-${String(m).padStart(2, "0")}`);
+    if (++m > 12) { m = 1; y++; }
+  }
+  return result;
+}
+
 function buildStackedData(
   periodMap: Map<string, Map<string, number>>,
   incomeMap: Map<string, number>,
   allCategories: Set<string>,
   includeIncome: boolean,
-  labelFn: (key: string) => string
+  labelFn: (key: string) => string,
+  fillGaps = false
 ): StackedSpendingData {
   const allKeys = new Set([
     ...Array.from(periodMap.keys()),
     ...(includeIncome ? Array.from(incomeMap.keys()) : []),
   ]);
-  const sortedKeys = Array.from(allKeys).sort();
+  const sortedKeys = fillGaps
+    ? fillMonthGaps(Array.from(allKeys))
+    : Array.from(allKeys).sort();
   const categoriesArr = Array.from(allCategories);
 
   const periods: StackedPeriod[] = sortedKeys.map((key) => {
@@ -143,7 +160,7 @@ export function computeStackedByMonth(
   return buildStackedData(periodMap, incomeMap, allCategories, includeIncome, (key) => {
     const [year, month] = key.split("-");
     return `${+month}/${year.slice(2)}`;
-  });
+  }, true);
 }
 
 function getISOWeekKey(date: Date): string {

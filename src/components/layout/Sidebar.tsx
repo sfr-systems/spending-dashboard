@@ -16,7 +16,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <div className="flex-1">
-          <NavLinks />
+          <NavLinks enableContextMenu />
         </div>
 
         {/* Account + logout */}

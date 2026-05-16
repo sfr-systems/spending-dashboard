@@ -13,11 +13,21 @@ model User {
   id                  String               @id @default(cuid())
   email               String               @unique
   passwordHash        String?
+  avatarDataUrl       String?
   files               UploadedFile[]
   transactions        Transaction[]
   sourceNameOverrides SourceNameOverride[]
+  preferences         UserPreference?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+}
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
 }
 
 model SourceNameOverride {

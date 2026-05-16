@@ -9,12 +9,55 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  useXAxisScale,
+  useYAxisScale,
 } from "recharts";
 import { CategoryLegend } from "./CategoryLegend";
 import { CategoryLineChart } from "./CategoryLineChart";
 import { CATEGORY_COLORS } from "./colors";
 import type { StackedSpendingData } from "@/lib/dashboard";
 const INCOME_COLOR = "#22c55e";
+
+function StackedCategoryTotals({
+  periods,
+  periodTotals,
+}: {
+  periods: Array<{ period: string; [key: string]: number | string }>;
+  periodTotals: number[];
+}) {
+  const xScale = useXAxisScale() as any;
+  const yScale = useYAxisScale() as any;
+  if (!xScale || !yScale) return null;
+
+  return (
+    <g>
+      {periods.map((p, i) => {
+        const total = periodTotals[i];
+        if (!total) return null;
+        const x = xScale(p.period as string, { position: "middle" } as any) ?? 0;
+        const y = yScale(total) - 6;
+        const fmt =
+          total >= 10000
+            ? `$${(total / 1000).toFixed(0)}k`
+            : total >= 1000
+            ? `$${(total / 1000).toFixed(1)}k`
+            : `$${Math.round(total)}`;
+        return (
+          <text
+            key={i}
+            x={x}
+            y={y}
+            textAnchor="middle"
+            fontSize={10}
+            fill="hsl(var(--muted-foreground))"
+          >
+            {fmt}
+          </text>
+        );
+      })}
+    </g>
+  );
+}
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("en-US", {
@@ -75,6 +118,12 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
 
   // Only render bars / lines for non-omitted categories.
   const visibleCategories = categories.filter((c) => !omittedCategories.has(c));
+
+  // Cumulative spending total per period across all visible categories.
+  const periodTotals = useMemo(
+    () => periods.map((p) => visibleCategories.reduce((s, cat) => s + (Number(p[cat]) || 0), 0)),
+    [periods, visibleCategories]
+  );
 
   if (periods.length === 0) {
     return (
@@ -168,7 +217,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={periods}
-                margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
+                margin={{ top: 24, right: 16, bottom: 4, left: 8 }}
                 barCategoryGap="16%"
                 barGap={4}
               >
@@ -224,11 +273,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
                     fill={colorMap[cat]}
                     fillOpacity={hoveredCategory && hoveredCategory !== cat ? 0.2 : 1}
                     maxBarSize={68}
-                    radius={
-                      idx === visibleCategories.length - 1
-                        ? [4, 4, 0, 0]
-                        : [0, 0, 0, 0]
-                    }
+                    radius={idx === visibleCategories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                     isAnimationActive={false}
                   />
                 ))}
@@ -243,6 +288,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
                     isAnimationActive={false}
                   />
                 )}
+                <StackedCategoryTotals periods={periods} periodTotals={periodTotals} />
               </BarChart>
             </ResponsiveContainer>
           </div>

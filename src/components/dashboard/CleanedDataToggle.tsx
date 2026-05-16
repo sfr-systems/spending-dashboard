@@ -25,7 +25,7 @@ export function CleanedDataToggle() {
     <button
       onClick={toggle}
       aria-pressed={cleanedData}
-      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
         cleanedData
           ? "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400"
           : "border-border bg-card text-muted-foreground hover:text-foreground"

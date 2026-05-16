@@ -27,22 +27,54 @@ import {
 export const metadata = { title: "Dashboard — SpendWise" };
 
 interface PageProps {
-  searchParams: { period?: string; income?: string; cleaned?: string };
+  searchParams: { period?: string; income?: string; cleaned?: string; from?: string; to?: string };
 }
 
 export default async function DashboardPage({ searchParams }: PageProps) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
+  // On a fresh load (no period param), restore the user's last saved period.
+  if (!searchParams.period) {
+    const pref = await db.userPreference.findUnique({
+      where: { userId: session.user.id },
+      select: { data: true },
+    });
+    const saved = (pref?.data as { dashboardPeriod?: { period?: string; from?: string; to?: string } } | null)
+      ?.dashboardPeriod;
+    if (saved?.period && saved.period !== "all") {
+      const qs = new URLSearchParams();
+      qs.set("period", saved.period);
+      if (saved.from) qs.set("from", saved.from);
+      if (saved.to) qs.set("to", saved.to);
+      if (searchParams.income) qs.set("income", searchParams.income);
+      if (searchParams.cleaned) qs.set("cleaned", searchParams.cleaned);
+      redirect(`/dashboard?${qs.toString()}`);
+    }
+  }
+
   const period = searchParams.period ?? "all";
   const includeIncome = searchParams.income === "1";
   const cleanedData = searchParams.cleaned !== "0";
-  const since = periodStart(period);
+
+  let since: Date | null = null;
+  let until: Date | null = null;
+  if (period === "custom" && searchParams.from && searchParams.to) {
+    since = new Date(`${searchParams.from}T00:00:00Z`);
+    until = new Date(`${searchParams.to}T23:59:59.999Z`);
+  } else {
+    since = periodStart(period);
+  }
 
   const raw = await db.transaction.findMany({
     where: {
       userId: session.user.id,
-      ...(since ? { transactionDate: { gte: since } } : {}),
+      ...(since || until ? {
+        transactionDate: {
+          ...(since ? { gte: since } : {}),
+          ...(until ? { lte: until } : {}),
+        },
+      } : {}),
     },
     select: {
       transactionDate: true,

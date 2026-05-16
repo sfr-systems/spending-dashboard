@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 import { NavLinks } from "./NavLinks";
 import { AccountSection } from "./AccountSection";
@@ -22,6 +23,14 @@ export function Sidebar() {
         {/* Account + logout */}
         <div className="mt-auto pt-4 border-t border-border">
           <AccountSection />
+          <div className="mt-2 px-3">
+            <Link
+              href="/privacy"
+              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Privacy policy
+            </Link>
+          </div>
         </div>
       </div>
     </aside>

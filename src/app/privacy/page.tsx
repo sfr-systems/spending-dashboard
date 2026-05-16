@@ -38,7 +38,7 @@ export default function PrivacyPolicyPage() {
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold">What we collect</h2>
-          <p>We only collect data that's directly required to give you a working spending dashboard:</p>
+          <p>We only collect data that&apos;s directly required to give you a working spending dashboard:</p>
           <ul className="list-disc space-y-1 pl-6">
             <li>
               <strong>Account information:</strong> the email address and password you provide when

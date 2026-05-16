@@ -4,9 +4,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-const PERIODS = [
+const PERIODS: { value: string; label: string; hideOnMobile?: boolean }[] = [
   { value: "30d", label: "30 days" },
-  { value: "3m", label: "3 months" },
+  { value: "3m", label: "3 months", hideOnMobile: true },
   { value: "6m", label: "6 months" },
   { value: "1y", label: "1 year" },
   { value: "all", label: "All time" },
@@ -95,6 +95,7 @@ export function PeriodSelector() {
             onClick={() => select(p.value)}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              p.hideOnMobile && "hidden sm:inline-flex",
               current === p.value
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

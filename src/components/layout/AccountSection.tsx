@@ -89,7 +89,8 @@ export function AccountSection() {
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 px-3 py-2">
+    <div className="flex flex-col gap-2 px-3 py-2">
+      {/* Row 1 — avatar + email */}
       <div className="flex items-center gap-2 min-w-0">
         {/* Avatar button */}
         <div className="relative shrink-0">
@@ -146,7 +147,8 @@ export function AccountSection() {
         </span>
       </div>
 
-      <div className="flex items-center gap-1 shrink-0">
+      {/* Row 2 — icon buttons */}
+      <div className="flex items-center gap-1">
         <ThemeToggle />
         <Button asChild variant="ghost" size="icon" aria-label="Security settings" className="h-8 w-8">
           <Link href="/security">

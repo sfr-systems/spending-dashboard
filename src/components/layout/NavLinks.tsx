@@ -4,15 +4,27 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Files, ArrowLeftRight, Settings, ExternalLink } from "lucide-react";
+import { LayoutDashboard, Files, ArrowLeftRight, Settings, ShieldCheck, Info, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TransactionsPopup } from "@/components/transactions/TransactionsPopup";
 
-const navItems = [
+type NavItem = {
+  href: string | null; // null = disabled placeholder
+  label: string;
+  icon: typeof LayoutDashboard;
+  comingSoon?: boolean;
+};
+
+const primaryNav: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/files", label: "Files", icon: Files },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+];
+
+const secondaryNav: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/security", label: "Security", icon: ShieldCheck },
+  { href: null, label: "About Us", icon: Info, comingSoon: true },
 ];
 
 interface NavLinksProps {
@@ -67,38 +79,56 @@ export function NavLinks({ onNavigate, enableContextMenu }: NavLinksProps) {
     };
   }, [contextMenu, closeContextMenu]);
 
+  const renderItem = ({ href, label, icon: Icon, comingSoon }: NavItem) => {
+    const isActive = href !== null && (pathname === href || pathname.startsWith(href + "/"));
+    const isTransactions = href === "/transactions";
+
+    if (href === null) {
+      return (
+        <li key={label}>
+          <span
+            aria-disabled="true"
+            className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground/50"
+          >
+            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1">{label}</span>
+            {comingSoon && (
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
+                Soon
+              </span>
+            )}
+          </span>
+        </li>
+      );
+    }
+
+    return (
+      <li key={href}>
+        <Link
+          href={href}
+          onClick={onNavigate}
+          onContextMenu={isTransactions && enableContextMenu ? handleContextMenu : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+            isActive
+              ? "bg-muted text-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+          aria-current={isActive ? "page" : undefined}
+        >
+          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {label}
+        </Link>
+      </li>
+    );
+  };
+
   return (
     <>
       <nav aria-label="Main navigation">
-        <ul className="space-y-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || pathname.startsWith(href + "/");
-            const isTransactions = href === "/transactions";
-            return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  onClick={onNavigate}
-                  onContextMenu={
-                    isTransactions && enableContextMenu
-                      ? handleContextMenu
-                      : undefined
-                  }
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <ul className="space-y-1">{primaryNav.map(renderItem)}</ul>
+        <hr className="my-3 border-border" aria-hidden="true" />
+        <ul className="space-y-1">{secondaryNav.map(renderItem)}</ul>
       </nav>
 
       {/*

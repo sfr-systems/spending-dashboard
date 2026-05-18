@@ -78,3 +78,50 @@
 .recharts-tooltip-wrapper {
   z-index: 50 !important;
 }
+
+/* Custom scrollbars — desktop only (devices with a fine pointer) */
+@media (pointer: fine) {
+  /* Firefox */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(215 16% 70%) transparent;
+  }
+  .dark html,
+  html.dark {
+    scrollbar-color: hsl(222 30% 28%) transparent;
+  }
+
+  /* WebKit / Blink — page + any scrollable element */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: hsl(215 16% 75%);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(215 16% 60%);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: hsl(222 30% 28%);
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(222 30% 38%);
+  }
+
+  /* Firefox — scoped scrollables (tables, panels) inherit via thin width */
+  * {
+    scrollbar-width: thin;
+  }
+}

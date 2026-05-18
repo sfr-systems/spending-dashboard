@@ -296,6 +296,10 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
 
   const [spendingTableExpanded, setSpendingTableExpanded] = useState(true);
   const [countTableExpanded, setCountTableExpanded] = useState(true);
+  const [spendingShowAllRows, setSpendingShowAllRows] = useState(false);
+  const [countShowAllRows, setCountShowAllRows] = useState(false);
+
+  const ROW_LIMIT = 8;
 
   // Inline edit state (modal only, cleaned-data mode only)
   const [hoveredSource, setHoveredSource] = useState<string | null>(null);
@@ -1029,9 +1033,14 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
                 />
               </button>
               {spendingTableExpanded && (
-                <div className="overflow-x-auto border-t border-border">
+                <>
+                <div
+                  className={`overflow-x-auto border-t border-border ${
+                    !spendingShowAllRows && chartData.length > ROW_LIMIT ? "max-h-80 overflow-y-auto" : ""
+                  }`}
+                >
                   <table className="w-full min-w-max text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-card">
                       <tr className="border-b border-border bg-muted/30">
                         <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                           Month
@@ -1088,7 +1097,7 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
+                    <tfoot className="sticky bottom-0 z-10 bg-card">
                       <tr className="border-t border-border bg-muted/30 font-semibold">
                         <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
                           Total
@@ -1108,6 +1117,17 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
                     </tfoot>
                   </table>
                 </div>
+                {chartData.length > ROW_LIMIT && (
+                  <div className="border-t border-border px-4 py-2 text-center">
+                    <button
+                      onClick={() => setSpendingShowAllRows((v) => !v)}
+                      className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {spendingShowAllRows ? "Collapse" : `Show all ${chartData.length} rows`}
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
 
@@ -1218,9 +1238,14 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
                 />
               </button>
               {countTableExpanded && (
-                <div className="overflow-x-auto border-t border-border">
+                <>
+                <div
+                  className={`overflow-x-auto border-t border-border ${
+                    !countShowAllRows && countChartData.length > ROW_LIMIT ? "max-h-80 overflow-y-auto" : ""
+                  }`}
+                >
                   <table className="w-full min-w-max text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-card">
                       <tr className="border-b border-border bg-muted/30">
                         <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
                           Month
@@ -1277,7 +1302,7 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
+                    <tfoot className="sticky bottom-0 z-10 bg-card">
                       <tr className="border-t border-border bg-muted/30 font-semibold">
                         <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
                           Total
@@ -1297,6 +1322,17 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
                     </tfoot>
                   </table>
                 </div>
+                {countChartData.length > ROW_LIMIT && (
+                  <div className="border-t border-border px-4 py-2 text-center">
+                    <button
+                      onClick={() => setCountShowAllRows((v) => !v)}
+                      className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {countShowAllRows ? "Collapse" : `Show all ${countChartData.length} rows`}
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </>

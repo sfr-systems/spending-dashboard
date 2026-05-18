@@ -1,10 +1,10 @@
 import { createHash } from "crypto";
 import { decodeProtectedHeader, importJWK, jwtVerify, type JWK } from "jose";
-import { getPlaidClient } from "@/lib/plaid/client";
+import { getPlaidClient, getActivePlaidEnv, type PlaidEnv } from "@/lib/plaid/client";
 
-// In-memory cache of verification keys by kid. Plaid rotates keys periodically;
-// expired ones are still returned by /webhook_verification_key/get for some time
-// to allow verification of in-flight events.
+// In-memory cache of verification keys by `${env}:${kid}`. Plaid rotates keys
+// periodically; expired ones are still returned by /webhook_verification_key/get
+// for some time so in-flight events can be verified.
 const keyCache = new Map<string, JWK>();
 
 const MAX_CLOCK_SKEW_SEC = 5 * 60;
@@ -36,19 +36,37 @@ export async function verifyPlaidWebhook(
     return { ok: false, reason: "Missing kid in JWT header" };
   }
 
-  let jwk = keyCache.get(kid);
-  if (!jwk) {
+  // Try the active env first, then the other env. This lets a production-mode
+  // deployment still verify sandbox-signed test webhooks (and vice versa)
+  // without flipping PLAID_ENV.
+  const active = getActivePlaidEnv();
+  const envOrder: PlaidEnv[] =
+    active === "production" ? ["production", "sandbox"] : ["sandbox", "production"];
+
+  let jwk: JWK | undefined;
+  const errors: string[] = [];
+  for (const env of envOrder) {
+    const cacheKey = `${env}:${kid}`;
+    const cached = keyCache.get(cacheKey);
+    if (cached) {
+      jwk = cached;
+      break;
+    }
     try {
-      const plaid = getPlaidClient();
+      const plaid = getPlaidClient(env);
       const resp = await plaid.webhookVerificationKeyGet({ key_id: kid });
       jwk = resp.data.key as unknown as JWK;
-      keyCache.set(kid, jwk);
+      keyCache.set(cacheKey, jwk);
+      break;
     } catch (err) {
-      return {
-        ok: false,
-        reason: `Failed to fetch verification key: ${err instanceof Error ? err.message : "unknown"}`,
-      };
+      errors.push(`${env}: ${err instanceof Error ? err.message : "unknown"}`);
     }
+  }
+  if (!jwk) {
+    return {
+      ok: false,
+      reason: `Failed to fetch verification key for kid ${kid} from any env (${errors.join("; ")})`,
+    };
   }
 
   let payload: Record<string, unknown>;

@@ -12,12 +12,18 @@ export async function POST() {
 
   try {
     const plaid = getPlaidClient();
+    const baseUrl = process.env.NEXTAUTH_URL?.replace(/\/$/, "");
+    const redirectUri = baseUrl ? `${baseUrl}/plaid/oauth-return` : undefined;
+    const webhookUrl = baseUrl ? `${baseUrl}/api/plaid/webhook` : undefined;
+
     const resp = await plaid.linkTokenCreate({
       user: { client_user_id: session.user.id },
       client_name: "SpendWise",
       products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: "en",
+      ...(redirectUri ? { redirect_uri: redirectUri } : {}),
+      ...(webhookUrl ? { webhook: webhookUrl } : {}),
     });
 
     return NextResponse.json({ linkToken: resp.data.link_token });

@@ -65,6 +65,7 @@ export function BankConnections({ mfaEnabled }: { mfaEnabled: boolean }) {
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to connect bank");
       } finally {
+        sessionStorage.removeItem("plaid:link_token");
         setLinkToken(null);
       }
     },
@@ -77,6 +78,7 @@ export function BankConnections({ mfaEnabled }: { mfaEnabled: boolean }) {
       void onPlaidSuccess(publicToken);
     },
     onExit: () => {
+      sessionStorage.removeItem("plaid:link_token");
       setLinkToken(null);
     },
   });
@@ -98,6 +100,7 @@ export function BankConnections({ mfaEnabled }: { mfaEnabled: boolean }) {
         throw new Error(data.error ?? "Failed to start bank connection");
       }
       const data = await res.json();
+      sessionStorage.setItem("plaid:link_token", data.linkToken);
       setLinkToken(data.linkToken);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start bank connection");

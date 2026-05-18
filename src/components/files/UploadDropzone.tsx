@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -11,12 +11,14 @@ export function UploadDropzone() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingName, setUploadingName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
 
   const upload = useCallback(async (file: File) => {
     setError(null);
     setWarning(null);
+    setUploadingName(file.name);
     setIsUploading(true);
     try {
       const formData = new FormData();
@@ -36,6 +38,7 @@ export function UploadDropzone() {
       setError("Upload failed. Please try again.");
     } finally {
       setIsUploading(false);
+      setUploadingName(null);
     }
   }, [router]);
 
@@ -96,6 +99,18 @@ export function UploadDropzone() {
         onChange={(e) => handleFiles(e.target.files)}
       />
 
+      {isUploading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-3 flex items-center gap-2 rounded border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground"
+        >
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span>
+            Uploading{uploadingName ? ` ${uploadingName}` : ""}…
+          </span>
+        </div>
+      )}
       {error && (
         <p className="mt-3 text-sm text-destructive">{error}</p>
       )}

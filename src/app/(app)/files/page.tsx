@@ -12,6 +12,12 @@ export default async function FilesPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { mfaEnabledAt: true },
+  });
+  const mfaEnabled = !!user?.mfaEnabledAt;
+
   const files = await db.uploadedFile.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
@@ -36,7 +42,7 @@ export default async function FilesPage() {
         </p>
       </div>
 
-      <BankConnections />
+      <BankConnections mfaEnabled={mfaEnabled} />
 
       <UploadDropzone />
 

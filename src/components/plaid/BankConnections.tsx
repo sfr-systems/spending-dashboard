@@ -19,7 +19,7 @@ type PlaidItemRow = {
   accounts: PlaidAccountInfo[];
 };
 
-export function BankConnections() {
+export function BankConnections({ mfaEnabled }: { mfaEnabled: boolean }) {
   const router = useRouter();
   const [items, setItems] = useState<PlaidItemRow[]>([]);
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -171,11 +171,17 @@ export function BankConnections() {
           <Banknote className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-base font-medium">Connected banks</h2>
         </div>
-        <Button onClick={startConnect} disabled={creatingToken} size="sm">
+        <Button onClick={startConnect} disabled={creatingToken || !mfaEnabled} size="sm">
           <Link2 className="mr-2 h-4 w-4" />
           {creatingToken ? "Opening…" : "Connect a bank"}
         </Button>
       </div>
+
+      {!mfaEnabled && (
+        <p className="mt-3 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          Must have two factor authentication enabled to connect to a bank
+        </p>
+      )}
 
       <p className="mt-1 text-xs text-muted-foreground">
         Read-only connection via Plaid. We never see your bank password. By connecting, you agree

@@ -12,7 +12,7 @@ export default async function SettingsPage() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { email: true, mfaEnabledAt: true, createdAt: true },
+    select: { email: true, firstName: true, lastName: true, mfaEnabledAt: true, createdAt: true },
   });
   if (!user) redirect("/login");
 
@@ -26,6 +26,8 @@ export default async function SettingsPage() {
       </div>
       <SettingsForm
         email={user.email}
+        firstName={user.firstName}
+        lastName={user.lastName}
         mfaEnabled={!!user.mfaEnabledAt}
         createdAt={user.createdAt.toISOString()}
       />

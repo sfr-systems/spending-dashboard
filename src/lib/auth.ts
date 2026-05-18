@@ -52,7 +52,7 @@ export const authOptions: NextAuthOptions = {
 
           const secret = decryptMfaSecret(user.mfaSecretCiphertext);
           if (verifyTotp(code, secret)) {
-            return { id: user.id, email: user.email };
+            return { id: user.id, email: user.email, firstName: user.firstName };
           }
 
           // Try backup codes — one-time use.
@@ -67,7 +67,7 @@ export const authOptions: NextAuthOptions = {
                 data: { usedAt: new Date() },
               });
               if (consumed.count === 1) {
-                return { id: user.id, email: user.email };
+                return { id: user.id, email: user.email, firstName: user.firstName };
               }
             }
           }
@@ -75,20 +75,31 @@ export const authOptions: NextAuthOptions = {
           throw new Error(AUTH_ERROR_MFA_INVALID);
         }
 
-        return { id: user.id, email: user.email };
+        return { id: user.id, email: user.email, firstName: user.firstName };
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
+        token.firstName = user.firstName ?? null;
+      }
+      // Refresh firstName from the DB if the client called session.update()
+      // (e.g. after the user fills it in via /settings in the future).
+      if (trigger === "update" && token.id) {
+        const fresh = await db.user.findUnique({
+          where: { id: token.id as string },
+          select: { firstName: true },
+        });
+        token.firstName = fresh?.firstName ?? null;
       }
       return token;
     },
     session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        session.user.firstName = (token.firstName as string | null | undefined) ?? null;
       }
       return session;
     },

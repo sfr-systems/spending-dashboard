@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import Link from "next/link";
 import { AlertTriangle, Mail, Key, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,16 +12,26 @@ import { formatDate } from "@/lib/format";
 
 export function SettingsForm({
   email,
+  firstName,
+  lastName,
   mfaEnabled,
   createdAt,
 }: {
   email: string;
+  firstName: string | null;
+  lastName: string | null;
   mfaEnabled: boolean;
   createdAt: string;
 }) {
   return (
     <div className="space-y-6">
-      <AccountInfoCard email={email} mfaEnabled={mfaEnabled} createdAt={createdAt} />
+      <AccountInfoCard
+        email={email}
+        firstName={firstName}
+        lastName={lastName}
+        mfaEnabled={mfaEnabled}
+        createdAt={createdAt}
+      />
       <ChangeEmailCard currentEmail={email} />
       <ChangePasswordCard />
       <DeleteAccountCard mfaEnabled={mfaEnabled} />
@@ -30,20 +41,31 @@ export function SettingsForm({
 
 function AccountInfoCard({
   email,
+  firstName,
+  lastName,
   mfaEnabled,
   createdAt,
 }: {
   email: string;
+  firstName: string | null;
+  lastName: string | null;
   mfaEnabled: boolean;
   createdAt: string;
 }) {
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
   return (
     <div className="rounded-lg border bg-card p-5">
       <div className="flex items-start gap-3">
         <User className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
         <div className="flex-1">
           <h2 className="text-base font-medium">Account</h2>
-          <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+          <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-muted-foreground">Name</dt>
+              <dd className="truncate">
+                {fullName || <span className="text-muted-foreground">Not set</span>}
+              </dd>
+            </div>
             <div>
               <dt className="text-xs text-muted-foreground">Email</dt>
               <dd className="truncate">{email}</dd>
@@ -54,7 +76,21 @@ function AccountInfoCard({
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Two-factor auth</dt>
-              <dd>{mfaEnabled ? "Enabled" : "Not enabled"}</dd>
+              <dd>
+                {mfaEnabled ? (
+                  "Enabled"
+                ) : (
+                  <>
+                    Not enabled &mdash;{" "}
+                    <Link
+                      href="/security"
+                      className="font-medium text-foreground underline-offset-4 hover:underline"
+                    >
+                      set it up
+                    </Link>
+                  </>
+                )}
+              </dd>
             </div>
           </dl>
         </div>

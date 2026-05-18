@@ -17,6 +17,8 @@ import {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,7 +39,12 @@ export default function RegisterPage() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim(), password }),
+      body: JSON.stringify({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        password,
+      }),
     });
 
     const data = await res.json();
@@ -66,6 +73,35 @@ export default function RegisterPage() {
               {error}
             </p>
           )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="first-name">First name</Label>
+              <Input
+                id="first-name"
+                type="text"
+                autoComplete="given-name"
+                required
+                maxLength={60}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Jane"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="last-name">Last name</Label>
+              <Input
+                id="last-name"
+                type="text"
+                autoComplete="family-name"
+                required
+                maxLength={60}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Doe"
+              />
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>

@@ -142,7 +142,7 @@ export function AccountSection() {
         </div>
 
         <span className="text-sm text-muted-foreground truncate">
-          {session?.user?.email ?? "Account"}
+          {session?.user?.firstName || session?.user?.email || "Account"}
         </span>
       </div>
 

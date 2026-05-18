@@ -4,11 +4,28 @@ import { db } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, firstName, lastName } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required." },
+        { status: 400 }
+      );
+    }
+
+    const trimmedFirst = typeof firstName === "string" ? firstName.trim() : "";
+    const trimmedLast = typeof lastName === "string" ? lastName.trim() : "";
+
+    if (!trimmedFirst || !trimmedLast) {
+      return NextResponse.json(
+        { error: "First and last name are required." },
+        { status: 400 }
+      );
+    }
+
+    if (trimmedFirst.length > 60 || trimmedLast.length > 60) {
+      return NextResponse.json(
+        { error: "Name fields must be 60 characters or fewer." },
         { status: 400 }
       );
     }
@@ -45,6 +62,8 @@ export async function POST(request: NextRequest) {
     await db.user.create({
       data: {
         email: normalizedEmail,
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
         passwordHash,
       },
     });

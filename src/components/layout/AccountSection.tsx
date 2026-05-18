@@ -89,7 +89,6 @@ export function AccountSection() {
 
   return (
     <div className="flex flex-col gap-2 px-3 py-2">
-      {/* Row 1 — avatar + email */}
       <div className="flex items-center gap-2 min-w-0">
         {/* Avatar button */}
         <div className="relative shrink-0">
@@ -141,23 +140,22 @@ export function AccountSection() {
           )}
         </div>
 
-        <span className="text-sm text-muted-foreground truncate">
+        <span className="flex-1 min-w-0 text-sm text-muted-foreground truncate">
           {session?.user?.firstName || session?.user?.email || "Account"}
         </span>
-      </div>
 
-      {/* Row 2 — icon buttons */}
-      <div className="flex items-center justify-center gap-1">
-        <ThemeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          aria-label="Sign out"
-          className="h-8 w-8"
-        >
-          <LogOut className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center shrink-0">
+          <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            aria-label="Sign out"
+            className="h-8 w-8"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Hidden file input */}

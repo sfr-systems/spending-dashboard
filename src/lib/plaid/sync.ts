@@ -5,6 +5,19 @@ import { buildCleanedDescription, buildDerivedCategory } from "@/lib/csv/enrich"
 import { inferTransactionType } from "@/lib/csv/normalize";
 import type { Transaction as PlaidTxn, RemovedTransaction } from "plaid";
 
+/**
+ * Plaid returns categories like "FOOD_AND_DRINK" / "GENERAL_MERCHANDISE".
+ * Normalize to a human-readable form: "Food And Drink", "General Merchandise".
+ */
+function formatPlaidCategory(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export type SyncSummary = {
   itemId: string;
   added: number;
@@ -84,6 +97,23 @@ export async function syncItem(item: SyncableItem): Promise<SyncSummary> {
         });
       }
 
+      // Backfill any Plaid rows still holding the raw "FOO_BAR_BAZ" form
+      // (synced before category normalization landed). The pattern check keeps
+      // this idempotent — once normalized, the row stops matching.
+      await tx.$executeRaw`
+        UPDATE "Transaction"
+        SET
+          "category" = initcap(replace(lower("category"), '_', ' ')),
+          "derivedCategory" = CASE
+            WHEN "derivedCategory" = "category"
+              THEN initcap(replace(lower("derivedCategory"), '_', ' '))
+            ELSE "derivedCategory"
+          END
+        WHERE "userId" = ${item.userId}
+          AND "source" = 'plaid'
+          AND "category" ~ '^[A-Z][A-Z_]*$'
+      `;
+
       await tx.plaidItem.update({
         where: { id: item.id },
         data: {
@@ -118,11 +148,12 @@ function rowFromPlaid(userId: string, plaidAccountLocalId: string, t: PlaidTxn) 
     ? new Date(t.authorized_date + "T00:00:00.000Z")
     : null;
 
-  const originalCategory = (
+  const rawCategory = (
     t.personal_finance_category?.primary ||
     t.category?.[0] ||
     "Uncategorized"
   ).toString();
+  const originalCategory = formatPlaidCategory(rawCategory);
 
   return {
     userId,

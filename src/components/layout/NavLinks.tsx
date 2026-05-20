@@ -17,15 +17,15 @@ type NavItem = {
 
 const primaryNav: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/files", label: "Files", icon: Files },
+  { href: "/files", label: "Files + Imports", icon: Files },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-  { href: "/edits", label: "Edits", icon: Pencil },
+  { href: "/edits", label: "Custom Edits", icon: Pencil },
 ];
 
 const secondaryNav: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/security", label: "Security", icon: ShieldCheck },
-  { href: null, label: "About Us", icon: Info, comingSoon: true },
+  { href: "/about", label: "About Us", icon: Info },
   { href: "/privacy", label: "Privacy Policy", icon: FileText },
 ];
 

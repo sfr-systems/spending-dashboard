@@ -108,8 +108,8 @@ export function CategoryLineChart({
               const id = `slcg-${cat.replace(/[^a-zA-Z0-9]/g, "_")}`;
               return (
                 <linearGradient key={cat} id={id} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.38} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0.02} />
+                  <stop offset="0%" stopColor={color} stopOpacity={0.45} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
               );
             })}
@@ -185,10 +185,8 @@ export function CategoryLineChart({
                 stroke={color}
                 strokeWidth={isHovered ? 2.5 : 1.5}
                 strokeOpacity={isDimmed ? 0.18 : 1}
-                // Keep a tiny non-zero fill so the path participates in pointer
-                // events, enabling onMouseEnter to fire when hovering over the line.
                 fill={`url(#${gradId})`}
-                fillOpacity={isHovered ? 1 : 0.06}
+                fillOpacity={isHovered ? 1 : isDimmed ? 0.08 : 0.35}
                 dot={isHovered ? (makeDotRenderer(cat, color) as any) : false}
                 activeDot={false}
                 isAnimationActive={false}

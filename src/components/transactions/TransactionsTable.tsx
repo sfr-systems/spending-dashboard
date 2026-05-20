@@ -16,6 +16,7 @@ import { columns, TransactionRow } from "./columns";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { DownloadTransactionsDialog } from "./DownloadTransactionsDialog";
 
 type SourceOption = { id: string; label: string; kind: "csv" | "bank" };
 
@@ -121,6 +122,10 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
             Clear
           </Button>
         )}
+
+        <div className="ml-auto">
+          <DownloadTransactionsDialog transactions={transactions} />
+        </div>
       </div>
 
       {/* Table */}

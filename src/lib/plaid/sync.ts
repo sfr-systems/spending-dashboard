@@ -44,58 +44,60 @@ export async function syncItem(item: SyncableItem): Promise<SyncSummary> {
     cursor = resp.data.next_cursor;
   }
 
-  await db.$transaction(async (tx) => {
-    for (const t of added) {
+  const addedRows = added
+    .map((t) => {
       const localAccountId = accountByPlaidId.get(t.account_id);
-      if (!localAccountId) continue;
-      await tx.transaction.create({
-        data: rowFromPlaid(item.userId, localAccountId, t),
-      });
-    }
+      return localAccountId ? rowFromPlaid(item.userId, localAccountId, t) : null;
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
 
-    for (const t of modified) {
-      const localAccountId = accountByPlaidId.get(t.account_id);
-      if (!localAccountId) continue;
-      const existing = await tx.transaction.findUnique({
-        where: {
-          userId_plaidTransactionId: {
-            userId: item.userId,
-            plaidTransactionId: t.transaction_id,
+  await db.$transaction(
+    async (tx) => {
+      // Bulk insert. skipDuplicates relies on @@unique([userId, plaidTransactionId]).
+      if (addedRows.length > 0) {
+        await tx.transaction.createMany({ data: addedRows, skipDuplicates: true });
+      }
+
+      // Modified rows: typically small; per-row upsert is fine.
+      for (const t of modified) {
+        const localAccountId = accountByPlaidId.get(t.account_id);
+        if (!localAccountId) continue;
+        const row = rowFromPlaid(item.userId, localAccountId, t);
+        await tx.transaction.upsert({
+          where: {
+            userId_plaidTransactionId: {
+              userId: item.userId,
+              plaidTransactionId: t.transaction_id,
+            },
           },
-        },
-        select: { id: true },
-      });
-      if (existing) {
-        await tx.transaction.update({
-          where: { id: existing.id },
-          data: rowFromPlaid(item.userId, localAccountId, t),
-        });
-      } else {
-        await tx.transaction.create({
-          data: rowFromPlaid(item.userId, localAccountId, t),
+          create: row,
+          update: row,
         });
       }
-    }
 
-    if (removed.length > 0) {
-      await tx.transaction.deleteMany({
-        where: {
-          userId: item.userId,
-          plaidTransactionId: { in: removed.map((r) => r.transaction_id) },
+      if (removed.length > 0) {
+        await tx.transaction.deleteMany({
+          where: {
+            userId: item.userId,
+            plaidTransactionId: { in: removed.map((r) => r.transaction_id) },
+          },
+        });
+      }
+
+      await tx.plaidItem.update({
+        where: { id: item.id },
+        data: {
+          cursor: cursor ?? null,
+          lastSyncedAt: new Date(),
+          lastSyncError: null,
+          status: "active",
         },
       });
-    }
-
-    await tx.plaidItem.update({
-      where: { id: item.id },
-      data: {
-        cursor: cursor ?? null,
-        lastSyncedAt: new Date(),
-        lastSyncError: null,
-        status: "active",
-      },
-    });
-  });
+    },
+    // Large initial syncs (24 months of history) can take longer than the
+    // 5-second default. Allow up to 60s of execution and 15s of wait.
+    { timeout: 60_000, maxWait: 15_000 },
+  );
 
   return {
     itemId: item.id,

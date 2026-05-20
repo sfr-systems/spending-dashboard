@@ -39,10 +39,7 @@ export default async function AboutPage() {
           className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-indigo-500/25 blur-3xl"
         />
         <div className="relative">
-          <p className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/40 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground backdrop-blur">
-            <Sparkles className="h-3 w-3" /> About
-          </p>
-          <h1 className="mt-4 bg-gradient-to-r from-indigo-200 via-violet-200 to-pink-200 bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl">
+          <h1 className="bg-gradient-to-r from-indigo-200 via-violet-200 to-pink-200 bg-clip-text text-4xl font-semibold tracking-tight text-transparent sm:text-5xl">
             SpendWise
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">

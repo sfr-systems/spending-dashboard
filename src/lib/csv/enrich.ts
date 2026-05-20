@@ -79,35 +79,9 @@ export function buildCleanedDescription(raw: string): string {
   return s || raw.toUpperCase().trim();
 }
 
-// Patterns that indicate a food-delivery transaction.
-const FOOD_DELIVERY_RES = [
-  /doordash/i,
-  /\buber[\s*]*eats\b/i,
-  /\bubereats\b/i,
-  /\bgopuff\b/i,
-  /\bgo[\s-]*puff\b/i,
-  /\bgrubhub\b/i,
-  /\bpostmates\b/i,
-];
-
-// Patterns that indicate a ride-sharing transaction.
-// Uber is ride-share UNLESS it is also an UberEats transaction.
-const LYFT_RE = /\blyft\b/i;
-const UBER_RE = /\buber\b/i;
-const UBER_EATS_RE = /eats/i;
-
-export function buildDerivedCategory(description: string, originalCategory: string): string {
-  if (FOOD_DELIVERY_RES.some((re) => re.test(description))) {
-    return "Food Delivery";
-  }
-
-  if (LYFT_RE.test(description)) {
-    return "Ride Sharing";
-  }
-
-  if (UBER_RE.test(description) && !UBER_EATS_RE.test(description)) {
-    return "Ride Sharing";
-  }
-
+// The derived category starts equal to the source category; user-managed
+// rules (see src/lib/rules.ts) and the seeded defaults (src/lib/builtinRules.ts)
+// transform it at read time.
+export function buildDerivedCategory(_description: string, originalCategory: string): string {
   return originalCategory;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,7 +11,7 @@ import {
   SortingState,
   ColumnFiltersState,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { columns, TransactionRow } from "./columns";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -34,14 +34,16 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
+  const [excludedSources, setExcludedSources] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
     let rows = transactions;
     if (categoryFilter) rows = rows.filter((r) => r.category === categoryFilter);
-    if (sourceFilter) rows = rows.filter((r) => r.sourceId === sourceFilter);
+    if (excludedSources.size > 0) {
+      rows = rows.filter((r) => r.sourceId == null || !excludedSources.has(r.sourceId));
+    }
     return rows;
-  }, [transactions, categoryFilter, sourceFilter]);
+  }, [transactions, categoryFilter, excludedSources]);
 
   const table = useReactTable({
     data: filtered,
@@ -58,16 +60,13 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
     initialState: { pagination: { pageSize: PAGE_SIZE } },
   });
 
-  const hasFilters = globalFilter || categoryFilter || sourceFilter;
+  const hasFilters = Boolean(globalFilter) || Boolean(categoryFilter) || excludedSources.size > 0;
 
   function clearFilters() {
     setGlobalFilter("");
     setCategoryFilter("");
-    setSourceFilter("");
+    setExcludedSources(new Set());
   }
-
-  const bankSources = sources.filter((s) => s.kind === "bank");
-  const csvSources = sources.filter((s) => s.kind === "csv");
 
   const { pageIndex, pageSize } = table.getState().pagination;
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -107,34 +106,14 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
           ))}
         </Select>
 
-        <Select
-          value={sourceFilter}
-          onChange={(e) => {
-            setSourceFilter(e.target.value);
+        <SourceMultiSelect
+          sources={sources}
+          excluded={excludedSources}
+          onChange={(next) => {
+            setExcludedSources(next);
             table.setPageIndex(0);
           }}
-          className="w-[200px]"
-        >
-          <option value="">All sources</option>
-          {bankSources.length > 0 && (
-            <optgroup label="Connected banks">
-              {bankSources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {csvSources.length > 0 && (
-            <optgroup label="CSV files">
-              {csvSources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </Select>
+        />
 
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
@@ -217,6 +196,164 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface SourceMultiSelectProps {
+  sources: SourceOption[];
+  excluded: Set<string>;
+  onChange: (next: Set<string>) => void;
+}
+
+function SourceMultiSelect({ sources, excluded, onChange }: SourceMultiSelectProps) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const bankSources = sources.filter((s) => s.kind === "bank");
+  const csvSources = sources.filter((s) => s.kind === "csv");
+  const visibleCount = sources.length - excluded.size;
+
+  const label = (() => {
+    if (sources.length === 0) return "No sources";
+    if (excluded.size === 0) return "All sources";
+    if (visibleCount === 0) return "No sources selected";
+    if (visibleCount === 1) {
+      const only = sources.find((s) => !excluded.has(s.id));
+      return only?.label ?? "1 source";
+    }
+    return `${visibleCount} of ${sources.length} sources`;
+  })();
+
+  function toggle(id: string) {
+    const next = new Set(excluded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onChange(next);
+  }
+
+  function selectAll() {
+    onChange(new Set());
+  }
+  function clearAll() {
+    onChange(new Set(sources.map((s) => s.id)));
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        disabled={sources.length === 0}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex h-10 w-[220px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className="truncate">{label}</span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-multiselectable="true"
+          className="absolute left-0 z-20 mt-1 max-h-80 w-[280px] overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-md"
+        >
+          <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
+            <button
+              type="button"
+              onClick={selectAll}
+              className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              onClick={clearAll}
+              className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              Clear
+            </button>
+          </div>
+
+          {bankSources.length > 0 && (
+            <SourceGroup
+              label="Connected banks"
+              items={bankSources}
+              excluded={excluded}
+              onToggle={toggle}
+            />
+          )}
+          {csvSources.length > 0 && (
+            <SourceGroup
+              label="CSV files"
+              items={csvSources}
+              excluded={excluded}
+              onToggle={toggle}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SourceGroup({
+  label,
+  items,
+  excluded,
+  onToggle,
+}: {
+  label: string;
+  items: SourceOption[];
+  excluded: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <div className="py-1">
+      <div className="px-3 pt-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      {items.map((s) => {
+        const checked = !excluded.has(s.id);
+        return (
+          <button
+            key={s.id}
+            type="button"
+            role="option"
+            aria-selected={checked}
+            onClick={() => onToggle(s.id)}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+          >
+            <span
+              className={
+                "flex h-4 w-4 shrink-0 items-center justify-center rounded border " +
+                (checked ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background")
+              }
+              aria-hidden="true"
+            >
+              {checked && <Check className="h-3 w-3" />}
+            </span>
+            <span className="truncate">{s.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -5,5 +5,6 @@ export const config = {
     "/dashboard/:path*",
     "/files/:path*",
     "/transactions/:path*",
+    "/edits/:path*",
   ],
 };

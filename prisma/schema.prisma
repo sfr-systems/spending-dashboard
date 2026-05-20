@@ -24,6 +24,8 @@ model User {
   preferences         UserPreference?
   plaidItems          PlaidItem[]
   mfaBackupCodes      MfaBackupCode[]
+  smartCategories     SmartCategory[]
+  transactionRules    TransactionRule[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }
@@ -109,6 +111,35 @@ model Transaction {
   @@index([userId, source])
   @@index([fileId])
   @@index([plaidAccountId])
+}
+
+model SmartCategory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// User-defined rules that apply to transactions at read time.
+// type = "recategorize": when matchField contains phrase, set Smart Category to targetCategory
+// type = "exclude":     when matchField contains phrase, drop the transaction from views
+model TransactionRule {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String
+  matchField     String   @default("any")
+  phrase         String
+  targetCategory String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model PlaidItem {

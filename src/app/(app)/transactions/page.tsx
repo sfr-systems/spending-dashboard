@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import type { TransactionRow } from "@/components/transactions/columns";
+import { applyTransactionRules, getUserRules } from "@/lib/rules";
 
 export const metadata = { title: "Transactions — SpendWise" };
 
@@ -13,7 +14,7 @@ export default async function TransactionsPage() {
 
   const userId = session.user.id;
 
-  const [rawTransactions, files, plaidItems] = await Promise.all([
+  const [rawTransactions, files, plaidItems, rules] = await Promise.all([
     db.transaction.findMany({
       where: { userId, NOT: { file: { frozen: true } } },
       orderBy: { transactionDate: "desc" },
@@ -43,9 +44,10 @@ export default async function TransactionsPage() {
       orderBy: { createdAt: "desc" },
       select: { id: true, institutionName: true },
     }),
+    getUserRules(userId),
   ]);
 
-  const transactions: TransactionRow[] = rawTransactions.map((t) => {
+  const transactions: TransactionRow[] = applyTransactionRules(rawTransactions.map((t) => {
     const isPlaid = t.source === "plaid";
     return {
       id: t.id,
@@ -64,7 +66,7 @@ export default async function TransactionsPage() {
         ? t.plaidAccount?.item.institutionName ?? null
         : t.file?.originalFilename ?? null,
     };
-  });
+  }), rules);
 
   const sources = [
     ...plaidItems.map((i) => ({ id: i.id, label: i.institutionName, kind: "bank" as const })),

@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { applyTransactionRules, getUserRules } from "@/lib/rules";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -11,7 +12,7 @@ export async function GET() {
 
   const userId = session.user.id;
 
-  const [rawTransactions, files, plaidItems] = await Promise.all([
+  const [rawTransactions, files, plaidItems, rules] = await Promise.all([
     db.transaction.findMany({
       where: { userId, NOT: { file: { frozen: true } } },
       orderBy: { transactionDate: "desc" },
@@ -41,9 +42,10 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       select: { id: true, institutionName: true },
     }),
+    getUserRules(userId),
   ]);
 
-  const transactions = rawTransactions.map((t) => {
+  const transactions = applyTransactionRules(rawTransactions.map((t) => {
     const isPlaid = t.source === "plaid";
     const sourceId = isPlaid ? t.plaidAccount?.item.id ?? null : t.file?.id ?? null;
     const sourceLabel = isPlaid
@@ -64,7 +66,7 @@ export async function GET() {
       sourceId,
       sourceLabel,
     };
-  });
+  }), rules);
 
   const sources = [
     ...plaidItems.map((i) => ({ id: i.id, label: i.institutionName, kind: "bank" as const })),

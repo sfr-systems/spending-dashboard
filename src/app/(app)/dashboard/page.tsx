@@ -15,6 +15,7 @@ import { StarBackground } from "@/components/dashboard/StarBackground";
 import { SummaryCharts } from "@/components/dashboard/SummaryCharts";
 import { SpendingBySourceSection } from "@/components/dashboard/SpendingBySourceSection";
 import type { SourceTransaction } from "@/components/dashboard/SpendingBySourceSection";
+import { SyncBankButton } from "@/components/dashboard/SyncBankButton";
 import {
   computeSummary,
   computeByCategory,
@@ -24,6 +25,7 @@ import {
   periodStart,
   toMonthKey,
 } from "@/lib/dashboard";
+import { applyTransactionRules, getUserRules } from "@/lib/rules";
 
 export const metadata = { title: "Dashboard — SpendWise" };
 
@@ -68,27 +70,42 @@ export default async function DashboardPage(props: PageProps) {
     since = periodStart(period);
   }
 
-  const raw = await db.transaction.findMany({
-    where: {
-      userId: session.user.id,
-      NOT: { file: { frozen: true } },
-      ...(since || until ? {
-        transactionDate: {
-          ...(since ? { gte: since } : {}),
-          ...(until ? { lte: until } : {}),
-        },
-      } : {}),
-    },
-    select: {
-      transactionDate: true,
-      amount: true,
-      category: true,
-      derivedCategory: true,
-      transactionType: true,
-      description: true,
-      cleanedDescription: true,
-    },
-  });
+  const [rawAll, rules, plaidSync] = await Promise.all([
+    db.transaction.findMany({
+      where: {
+        userId: session.user.id,
+        NOT: { file: { frozen: true } },
+        ...(since || until ? {
+          transactionDate: {
+            ...(since ? { gte: since } : {}),
+            ...(until ? { lte: until } : {}),
+          },
+        } : {}),
+      },
+      select: {
+        transactionDate: true,
+        amount: true,
+        category: true,
+        derivedCategory: true,
+        transactionType: true,
+        description: true,
+        cleanedDescription: true,
+      },
+    }),
+    getUserRules(session.user.id),
+    db.plaidItem.aggregate({
+      where: { userId: session.user.id },
+      _count: { _all: true },
+      _max: { lastSyncedAt: true },
+    }),
+  ]);
+
+  const hasBankConnection = plaidSync._count._all > 0;
+  const lastSyncedAt = plaidSync._max.lastSyncedAt
+    ? plaidSync._max.lastSyncedAt.toISOString()
+    : null;
+
+  const raw = applyTransactionRules(rawAll, rules);
 
   const transactions = raw.map((t) => ({
     transactionDate: t.transactionDate,
@@ -170,6 +187,7 @@ export default async function DashboardPage(props: PageProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {hasBankConnection && <SyncBankButton lastSyncedAt={lastSyncedAt} />}
           <Suspense>
             <CleanedDataToggle />
           </Suspense>

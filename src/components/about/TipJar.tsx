@@ -95,7 +95,7 @@ export function TipJar() {
         <div className="mt-4">
           <Button variant="outline" size="sm" onClick={pickFile} className="gap-2">
             <ImagePlus className="h-3.5 w-3.5" />
-            Upload Nude
+            Upload Nude 😉
           </Button>
         </div>
       )}

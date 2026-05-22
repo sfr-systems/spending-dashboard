@@ -29,10 +29,24 @@ function ruleMatches<T extends RuleApplicable>(t: T, rule: TransactionRuleRow): 
   return haystack.includes(rule.phrase.toLowerCase());
 }
 
+// Among rules that all match a transaction, the one with the longest phrase
+// is the most specific (e.g. "uber eats" beats "uber"). Ties on length fall
+// back to creation order so the most recently added rule still wins.
+function pickMostSpecific(matches: TransactionRuleRow[]): TransactionRuleRow | null {
+  if (matches.length === 0) return null;
+  let best = matches[0];
+  for (let i = 1; i < matches.length; i++) {
+    const m = matches[i];
+    if (m.phrase.length > best.phrase.length) best = m;
+  }
+  return best;
+}
+
 /**
  * Drop excluded transactions, apply recategorize rules to derivedCategory,
- * and apply rename rules to cleanedDescription. Last matching rule of each
- * mutating type wins.
+ * and apply rename rules to cleanedDescription. When multiple rules match a
+ * transaction, the rule with the longest phrase wins (most specific), so a
+ * narrower rule like "uber eats" beats a broader one like "uber".
  */
 export function applyTransactionRules<T extends RuleApplicable>(
   transactions: T[],
@@ -52,12 +66,10 @@ export function applyTransactionRules<T extends RuleApplicable>(
 
     if (excludes.some((r) => ruleMatches(t, r))) continue;
 
-    const derived = recatMatches.length > 0
-      ? recatMatches[recatMatches.length - 1].targetCategory!
-      : t.derivedCategory;
-    const cleaned = renameMatches.length > 0
-      ? renameMatches[renameMatches.length - 1].targetCategory!
-      : t.cleanedDescription;
+    const recatWinner = pickMostSpecific(recatMatches);
+    const renameWinner = pickMostSpecific(renameMatches);
+    const derived = recatWinner ? recatWinner.targetCategory! : t.derivedCategory;
+    const cleaned = renameWinner ? renameWinner.targetCategory! : t.cleanedDescription;
 
     if (derived === t.derivedCategory && cleaned === t.cleanedDescription) {
       result.push(t);

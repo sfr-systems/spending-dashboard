@@ -16,7 +16,15 @@ import { columns, TransactionRow } from "./columns";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { DownloadTransactionsDialog } from "./DownloadTransactionsDialog";
+import { periodStart } from "@/lib/dashboard";
+
+const PERIOD_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "All time" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "3m", label: "Last 3 months" },
+  { value: "6m", label: "Last 6 months" },
+  { value: "1y", label: "Last 1 year" },
+];
 
 type SourceOption = { id: string; label: string; kind: "csv" | "bank" };
 
@@ -36,6 +44,15 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
   const [globalFilter, setGlobalFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [excludedSources, setExcludedSources] = useState<Set<string>>(new Set());
+  const [recurringFilter, setRecurringFilter] = useState<"all" | "recurring" | "non-recurring">("all");
+  const [period, setPeriod] = useState<string>("all");
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
+  const [customOpen, setCustomOpen] = useState(false);
+  const [pendingFrom, setPendingFrom] = useState("");
+  const [pendingTo, setPendingTo] = useState("");
+  const customPanelRef = useRef<HTMLDivElement>(null);
+  const customAnchorRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     let rows = transactions;
@@ -43,8 +60,43 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
     if (excludedSources.size > 0) {
       rows = rows.filter((r) => r.sourceId == null || !excludedSources.has(r.sourceId));
     }
+    if (recurringFilter === "recurring") rows = rows.filter((r) => r.isRecurring);
+    else if (recurringFilter === "non-recurring") rows = rows.filter((r) => !r.isRecurring);
+    if (period === "custom" && customFrom && customTo) {
+      const sinceMs = new Date(`${customFrom}T00:00:00Z`).getTime();
+      const untilMs = new Date(`${customTo}T23:59:59.999Z`).getTime();
+      rows = rows.filter((r) => {
+        const t = new Date(r.transactionDate).getTime();
+        return t >= sinceMs && t <= untilMs;
+      });
+    } else if (period !== "all" && period !== "custom") {
+      const since = periodStart(period);
+      if (since) {
+        const sinceMs = since.getTime();
+        rows = rows.filter((r) => new Date(r.transactionDate).getTime() >= sinceMs);
+      }
+    }
     return rows;
-  }, [transactions, categoryFilter, excludedSources]);
+  }, [transactions, categoryFilter, excludedSources, recurringFilter, period, customFrom, customTo]);
+
+  useEffect(() => {
+    if (!customOpen) return;
+    function onDown(e: MouseEvent) {
+      if (
+        !customPanelRef.current?.contains(e.target as Node) &&
+        !customAnchorRef.current?.contains(e.target as Node)
+      ) setCustomOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setCustomOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [customOpen]);
 
   const table = useReactTable({
     data: filtered,
@@ -61,13 +113,56 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
     initialState: { pagination: { pageSize: PAGE_SIZE } },
   });
 
-  const hasFilters = Boolean(globalFilter) || Boolean(categoryFilter) || excludedSources.size > 0;
+  const hasFilters =
+    Boolean(globalFilter) ||
+    Boolean(categoryFilter) ||
+    excludedSources.size > 0 ||
+    recurringFilter !== "all" ||
+    period !== "all";
 
   function clearFilters() {
     setGlobalFilter("");
     setCategoryFilter("");
     setExcludedSources(new Set());
+    setRecurringFilter("all");
+    setPeriod("all");
+    setCustomFrom("");
+    setCustomTo("");
+    setCustomOpen(false);
   }
+
+  function handlePeriodChange(value: string) {
+    if (value === "custom") {
+      setPendingFrom(customFrom);
+      setPendingTo(customTo);
+      setCustomOpen(true);
+      return;
+    }
+    setPeriod(value);
+    setCustomOpen(false);
+    table.setPageIndex(0);
+  }
+
+  function applyCustomRange() {
+    if (!pendingFrom || !pendingTo || pendingFrom > pendingTo) return;
+    setCustomFrom(pendingFrom);
+    setCustomTo(pendingTo);
+    setPeriod("custom");
+    setCustomOpen(false);
+    table.setPageIndex(0);
+  }
+
+  function fmtCustomDate(iso: string) {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    return `${+m}/${+d}/${y.slice(2)}`;
+  }
+
+  const customLabel =
+    period === "custom" && customFrom && customTo
+      ? `${fmtCustomDate(customFrom)} – ${fmtCustomDate(customTo)}`
+      : "Custom range…";
+  const canApplyCustom = !!pendingFrom && !!pendingTo && pendingFrom <= pendingTo;
 
   const { pageIndex, pageSize } = table.getState().pagination;
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -116,16 +211,84 @@ export function TransactionsTable({ transactions, categories, sources }: Transac
           }}
         />
 
+        <Select
+          value={recurringFilter}
+          onChange={(e) => {
+            setRecurringFilter(e.target.value as "all" | "recurring" | "non-recurring");
+            table.setPageIndex(0);
+          }}
+          className="w-[180px]"
+          aria-label="Filter by recurring"
+        >
+          <option value="all">All transactions</option>
+          <option value="recurring">Recurring only</option>
+          <option value="non-recurring">Non-recurring only</option>
+        </Select>
+
+        <div ref={customAnchorRef} className="relative">
+          <Select
+            value={period}
+            onChange={(e) => handlePeriodChange(e.target.value)}
+            className="w-[180px]"
+            aria-label="Filter by time period"
+          >
+            {PERIOD_OPTIONS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+            <option value="custom">{customLabel}</option>
+          </Select>
+
+          {customOpen && (
+            <div
+              ref={customPanelRef}
+              className="absolute left-0 top-full z-50 mt-2 min-w-max rounded-xl border border-border bg-card p-4 shadow-xl"
+            >
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Custom range
+              </p>
+              <div className="flex items-end gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">From</label>
+                  <input
+                    type="date"
+                    value={pendingFrom}
+                    max={pendingTo || undefined}
+                    onChange={(e) => setPendingFrom(e.target.value)}
+                    className="rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground [color-scheme:dark]"
+                  />
+                </div>
+                <span className="mb-2 text-muted-foreground">→</span>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">To</label>
+                  <input
+                    type="date"
+                    value={pendingTo}
+                    min={pendingFrom || undefined}
+                    onChange={(e) => setPendingTo(e.target.value)}
+                    className="rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground [color-scheme:dark]"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={applyCustomRange}
+                  disabled={!canApplyCustom}
+                  className="mb-0.5 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-40"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
             <X className="h-3.5 w-3.5" />
             Clear
           </Button>
         )}
-
-        <div className="ml-auto">
-          <DownloadTransactionsDialog transactions={transactions} />
-        </div>
       </div>
 
       {/* Table */}

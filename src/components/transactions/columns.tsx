@@ -1,9 +1,10 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, Banknote, FileText } from "lucide-react";
+import { ArrowUpDown, Banknote, FileText, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DashboardExcludeToggle } from "./DashboardExcludeToggle";
 
 export type TransactionRow = {
   id: string;
@@ -19,6 +20,8 @@ export type TransactionRow = {
   accountName: string | null;
   sourceId: string | null;
   sourceLabel: string | null;
+  isRecurring: boolean;
+  excludedFromDashboard: boolean;
 };
 
 function SortHeader({
@@ -133,6 +136,34 @@ export const columns: ColumnDef<TransactionRow>[] = [
       if (type === "debit") return <Badge variant="secondary">Debit</Badge>;
       return <Badge variant="outline">{type}</Badge>;
     },
+  },
+  {
+    accessorKey: "isRecurring",
+    header: "Recurring",
+    cell: ({ getValue }) =>
+      getValue<boolean>() ? (
+        <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
+          <Repeat className="h-3 w-3" aria-hidden="true" />
+          Recurring
+        </Badge>
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      ),
+    filterFn: (row, _id, value) => {
+      if (!value) return true;
+      return row.original.isRecurring === true;
+    },
+  },
+  {
+    accessorKey: "excludedFromDashboard",
+    header: "In Dashboard",
+    cell: ({ row }) => (
+      <DashboardExcludeToggle
+        transactionId={row.original.id}
+        initialExcluded={row.original.excludedFromDashboard}
+      />
+    ),
+    enableSorting: false,
   },
   {
     accessorKey: "sourceLabel",

@@ -36,6 +36,8 @@ const ENRICHED_EXTRA_COLUMNS: ColumnDef[] = [
   { header: "Smart Category", get: (t) => t.derivedCategory },
   { header: "Merchant", get: (t) => t.merchant },
   { header: "Account", get: (t) => t.accountName },
+  { header: "Recurring", get: (t) => (t.isRecurring ? "yes" : "no") },
+  { header: "In Dashboard", get: (t) => (t.excludedFromDashboard ? "no" : "yes") },
 ];
 
 type Mode = "raw" | "enriched";

@@ -75,6 +75,7 @@ export default async function DashboardPage(props: PageProps) {
       where: {
         userId: session.user.id,
         NOT: { file: { frozen: true } },
+        excludedFromDashboard: false,
         ...(since || until ? {
           transactionDate: {
             ...(since ? { gte: since } : {}),

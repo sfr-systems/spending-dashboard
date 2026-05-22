@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { applyTransactionRules, getUserRules } from "@/lib/rules";
+import { detectRecurringIds } from "@/lib/recurring";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -28,6 +29,7 @@ export async function GET() {
         derivedCategory: true,
         transactionType: true,
         accountName: true,
+        excludedFromDashboard: true,
         file: { select: { id: true, originalFilename: true } },
         plaidAccount: { select: { item: { select: { id: true, institutionName: true } } } },
       },
@@ -45,7 +47,7 @@ export async function GET() {
     getUserRules(userId),
   ]);
 
-  const transactions = applyTransactionRules(rawTransactions.map((t) => {
+  const afterRules = applyTransactionRules(rawTransactions.map((t) => {
     const isPlaid = t.source === "plaid";
     const sourceId = isPlaid ? t.plaidAccount?.item.id ?? null : t.file?.id ?? null;
     const sourceLabel = isPlaid
@@ -63,10 +65,17 @@ export async function GET() {
       derivedCategory: t.derivedCategory,
       transactionType: t.transactionType,
       accountName: t.accountName,
+      excludedFromDashboard: t.excludedFromDashboard,
       sourceId,
       sourceLabel,
     };
   }), rules);
+
+  const recurringIds = detectRecurringIds(afterRules);
+  const transactions = afterRules.map((t) => ({
+    ...t,
+    isRecurring: recurringIds.has(t.id),
+  }));
 
   const sources = [
     ...plaidItems.map((i) => ({ id: i.id, label: i.institutionName, kind: "bank" as const })),

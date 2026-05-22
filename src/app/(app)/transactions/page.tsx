@@ -3,8 +3,10 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
+import { DownloadTransactionsDialog } from "@/components/transactions/DownloadTransactionsDialog";
 import type { TransactionRow } from "@/components/transactions/columns";
 import { applyTransactionRules, getUserRules } from "@/lib/rules";
+import { detectRecurringIds } from "@/lib/recurring";
 
 export const metadata = { title: "Transactions — SpendWise" };
 
@@ -30,6 +32,7 @@ export default async function TransactionsPage() {
         derivedCategory: true,
         transactionType: true,
         accountName: true,
+        excludedFromDashboard: true,
         file: { select: { id: true, originalFilename: true } },
         plaidAccount: { select: { item: { select: { id: true, institutionName: true } } } },
       },
@@ -47,7 +50,7 @@ export default async function TransactionsPage() {
     getUserRules(userId),
   ]);
 
-  const transactions: TransactionRow[] = applyTransactionRules(rawTransactions.map((t) => {
+  const afterRules = applyTransactionRules(rawTransactions.map((t) => {
     const isPlaid = t.source === "plaid";
     return {
       id: t.id,
@@ -61,12 +64,19 @@ export default async function TransactionsPage() {
       derivedCategory: t.derivedCategory,
       transactionType: t.transactionType,
       accountName: t.accountName,
+      excludedFromDashboard: t.excludedFromDashboard,
       sourceId: isPlaid ? t.plaidAccount?.item.id ?? null : t.file?.id ?? null,
       sourceLabel: isPlaid
         ? t.plaidAccount?.item.institutionName ?? null
         : t.file?.originalFilename ?? null,
     };
   }), rules);
+
+  const recurringIds = detectRecurringIds(afterRules);
+  const transactions: TransactionRow[] = afterRules.map((t) => ({
+    ...t,
+    isRecurring: recurringIds.has(t.id),
+  }));
 
   const sources = [
     ...plaidItems.map((i) => ({ id: i.id, label: i.institutionName, kind: "bank" as const })),
@@ -88,13 +98,16 @@ export default async function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {transactions.length === 0
-            ? "Connect a bank or upload a CSV to see your transactions here."
-            : `${transactions.length.toLocaleString()} transaction${transactions.length === 1 ? "" : "s"}${sourceSummary ? ` across ${sourceSummary}` : ""}.`}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {transactions.length === 0
+              ? "Connect a bank or upload a CSV to see your transactions here."
+              : `${transactions.length.toLocaleString()} transaction${transactions.length === 1 ? "" : "s"}${sourceSummary ? ` across ${sourceSummary}` : ""}.`}
+          </p>
+        </div>
+        <DownloadTransactionsDialog transactions={transactions} />
       </div>
 
       <TransactionsTable

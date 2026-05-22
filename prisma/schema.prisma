@@ -101,6 +101,7 @@ model Transaction {
   transactionType    String        @default("unknown")
   accountName        String?
   notes              String?
+  excludedFromDashboard Boolean    @default(false)
   rawData            Json
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt

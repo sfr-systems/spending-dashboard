@@ -215,7 +215,7 @@ export function CategoryAnalysisSection({ transactions }: Props) {
     <div className="flex flex-col gap-4">
       {/* Header: title + monthly/weekly toggle */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <h2 className="bg-gradient-to-r from-indigo-300 via-violet-300 to-pink-300 bg-clip-text text-base font-semibold uppercase tracking-wide text-transparent">
           Category analysis
         </h2>
         <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">

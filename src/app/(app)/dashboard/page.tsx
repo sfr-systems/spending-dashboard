@@ -190,7 +190,7 @@ export default async function DashboardPage(props: PageProps) {
       {/* Header row */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="bg-gradient-to-r from-indigo-300 via-violet-300 to-pink-300 bg-clip-text text-3xl font-semibold tracking-tight text-transparent">Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {isEmpty
               ? "Upload CSV files to see your spending insights."
@@ -241,7 +241,7 @@ export default async function DashboardPage(props: PageProps) {
 
           {/* Section 3: Category analysis */}
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            <h2 className="bg-gradient-to-r from-indigo-300 via-violet-300 to-pink-300 bg-clip-text text-base font-semibold uppercase tracking-wide text-transparent">
               Top categories
             </h2>
             <ClientOnly fallbackHeight="h-64">

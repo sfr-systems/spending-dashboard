@@ -778,7 +778,7 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
         <div className="flex items-start justify-between gap-4">
           {/* Left: title stacked above search */}
           <div className="flex flex-1 min-w-0 flex-col gap-3">
-            <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            <h2 className="bg-gradient-to-r from-indigo-300 via-violet-300 to-pink-300 bg-clip-text text-base font-semibold uppercase tracking-wide text-transparent">
               Spending by source
             </h2>
             <div className="relative max-w-sm" ref={containerRef}>
@@ -1132,7 +1132,7 @@ export function SpendingBySourceSection({ allSources, transactions, cleanedData,
             </div>
 
             {/* ── Transaction count section ─────────────────────────────── */}
-            <h3 className="mt-6 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            <h3 className="mt-6 bg-gradient-to-r from-indigo-300 via-violet-300 to-pink-300 bg-clip-text text-base font-semibold uppercase tracking-wide text-transparent">
               Transaction count by source
             </h3>
 

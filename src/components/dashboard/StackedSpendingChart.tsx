@@ -178,7 +178,7 @@ export function StackedSpendingChart({ monthlyData, weeklyData, includeIncome }:
     <div className="flex flex-col" onMouseLeave={() => setHoveredCategory(null)}>
       {/* Header: section title + Monthly/Weekly toggle */}
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <h2 className="bg-gradient-to-r from-indigo-300 via-violet-300 to-pink-300 bg-clip-text text-base font-semibold uppercase tracking-wide text-transparent">
           Spending by category
         </h2>
         <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">

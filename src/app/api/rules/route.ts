@@ -22,6 +22,7 @@ export async function GET() {
       matchField: r.matchField,
       phrase: r.phrase,
       targetCategory: r.targetCategory,
+      hidden: r.hidden,
       createdAt: r.createdAt.toISOString(),
     })),
   });
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     matchField?: unknown;
     phrase?: unknown;
     targetCategory?: unknown;
+    hidden?: unknown;
   };
   try {
     body = await req.json();
@@ -79,6 +81,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Cleaned Name is too long" }, { status: 400 });
   }
 
+  const hidden = body.hidden === true;
+
   const created = await db.transactionRule.create({
     data: {
       userId: session.user.id,
@@ -86,6 +90,7 @@ export async function POST(req: NextRequest) {
       matchField,
       phrase,
       targetCategory: type === "exclude" ? null : targetCategory,
+      hidden,
     },
   });
 
@@ -96,6 +101,7 @@ export async function POST(req: NextRequest) {
       matchField: created.matchField,
       phrase: created.phrase,
       targetCategory: created.targetCategory,
+      hidden: created.hidden,
       createdAt: created.createdAt.toISOString(),
     },
   });

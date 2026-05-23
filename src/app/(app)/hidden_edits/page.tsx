@@ -2,21 +2,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { EditsClient } from "@/components/edits/EditsClient";
+import { HiddenEditsClient } from "@/components/edits/HiddenEditsClient";
 import { getUserRules } from "@/lib/rules";
-import { ensureInitialSeed } from "@/lib/seedDefaults";
 
-export const metadata = { title: "Edits — SpendWise" };
+export const metadata = { title: "Hidden Edits — SpendWise" };
 
-export default async function EditsPage() {
+export default async function HiddenEditsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
-
-  // First-visit seeding of the default Smart Categories and rules.
-  // Idempotent — reads/writes a flag in UserPreference.data.
-  await ensureInitialSeed(userId);
 
   const [smartCategories, rules, derivedRows] = await Promise.all([
     db.smartCategory.findMany({
@@ -24,7 +19,7 @@ export default async function EditsPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    getUserRules(userId, { hidden: false }),
+    getUserRules(userId, { hidden: true }),
     db.transaction.findMany({
       where: { userId, NOT: { file: { frozen: true } } },
       select: { derivedCategory: true },
@@ -39,14 +34,14 @@ export default async function EditsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Edits</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Hidden Edits</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Reshape your data: define Smart Categories, recategorize transactions by phrase, or
+          Reshape your data: recategorize transactions by phrase, rename Cleaned Names, or
           exclude transactions you don&apos;t want to see.
         </p>
       </div>
-      <EditsClient
-        initialCategories={smartCategories}
+      <HiddenEditsClient
+        availableCategories={smartCategories.map((c) => c.name)}
         initialRules={rules}
         existingCategoryNames={existingCategories}
       />

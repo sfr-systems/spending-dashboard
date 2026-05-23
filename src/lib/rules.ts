@@ -9,6 +9,7 @@ export type TransactionRuleRow = {
   matchField: RuleMatchField;
   phrase: string;
   targetCategory: string | null;
+  hidden: boolean;
   createdAt: string;
 };
 
@@ -80,9 +81,14 @@ export function applyTransactionRules<T extends RuleApplicable>(
   return result;
 }
 
-export async function getUserRules(userId: string): Promise<TransactionRuleRow[]> {
+export async function getUserRules(
+  userId: string,
+  opts: { hidden?: boolean } = {},
+): Promise<TransactionRuleRow[]> {
+  const where: { userId: string; hidden?: boolean } = { userId };
+  if (opts.hidden !== undefined) where.hidden = opts.hidden;
   const rows = await db.transactionRule.findMany({
-    where: { userId },
+    where,
     orderBy: { createdAt: "asc" },
   });
   return rows.map((r) => ({
@@ -91,6 +97,7 @@ export async function getUserRules(userId: string): Promise<TransactionRuleRow[]
     matchField: r.matchField as RuleMatchField,
     phrase: r.phrase,
     targetCategory: r.targetCategory,
+    hidden: r.hidden,
     createdAt: r.createdAt.toISOString(),
   }));
 }

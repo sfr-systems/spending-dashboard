@@ -137,6 +137,7 @@ model TransactionRule {
   matchField     String   @default("any")
   phrase         String
   targetCategory String?
+  hidden         Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

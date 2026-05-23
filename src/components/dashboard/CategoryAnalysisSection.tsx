@@ -327,13 +327,15 @@ export function CategoryAnalysisSection({ transactions }: Props) {
                     offset={6}
                     fontSize={10}
                     fill="hsl(var(--muted-foreground))"
-                    formatter={(v: number) =>
-                      v >= 10000
+                    formatter={(value) => {
+                      const v = Number(value);
+                      if (!Number.isFinite(v)) return "";
+                      return v >= 10000
                         ? `$${(v / 1000).toFixed(0)}k`
                         : v >= 1000
                         ? `$${(v / 1000).toFixed(1)}k`
-                        : `$${Math.round(v)}`
-                    }
+                        : `$${Math.round(v)}`;
+                    }}
                   />
                 )}
               </Bar>

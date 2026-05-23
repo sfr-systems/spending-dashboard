@@ -13,8 +13,11 @@ import { ClientOnly } from "@/components/dashboard/ClientOnly";
 import { WaveDivider } from "@/components/dashboard/WaveDivider";
 import { StarBackground } from "@/components/dashboard/StarBackground";
 import { SummaryCharts } from "@/components/dashboard/SummaryCharts";
+import { CATEGORY_COLORS } from "@/components/dashboard/colors";
 import { SpendingBySourceSection } from "@/components/dashboard/SpendingBySourceSection";
 import type { SourceTransaction } from "@/components/dashboard/SpendingBySourceSection";
+import { CategoryAnalysisSection } from "@/components/dashboard/CategoryAnalysisSection";
+import type { CategoryTransaction } from "@/components/dashboard/CategoryAnalysisSection";
 import { SyncBankButton } from "@/components/dashboard/SyncBankButton";
 import {
   computeSummary,
@@ -129,13 +132,13 @@ export default async function DashboardPage(props: PageProps) {
     spent: m.spent,
   }));
 
-  // Mini pie chart: top 4 categories + "Other"
-  const top4 = byCategory.slice(0, 4);
-  const otherTotal = byCategory.slice(4).reduce((s, c) => s + c.total, 0);
-  const miniPieData = [
-    ...top4.map((c) => ({ name: c.category, value: c.total })),
-    ...(otherTotal > 0 ? [{ name: "Other", value: otherTotal, isOther: true }] : []),
-  ];
+  // Mini donut grid: top 6 categories vs. overall spending total
+  const overallSpentTotal = byCategory.reduce((s, c) => s + c.total, 0);
+  const donutData = byCategory.slice(0, 6).map((c, i) => ({
+    name: c.category,
+    value: c.total,
+    color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+  }));
 
   // Build serializable source transactions for the SpendingBySource section
   const sourceTxns: SourceTransaction[] = raw.map((t) => ({
@@ -144,6 +147,13 @@ export default async function DashboardPage(props: PageProps) {
     source: cleanedData
       ? t.cleanedDescription || t.description
       : t.description,
+  }));
+
+  const categoryTxns: CategoryTransaction[] = raw.map((t) => ({
+    date: t.transactionDate.toISOString(),
+    amount: t.amount.toNumber(),
+    source: cleanedData ? t.cleanedDescription || t.description : t.description,
+    category: cleanedData ? t.derivedCategory || t.category : t.category,
   }));
 
   const allSources = Array.from(
@@ -175,7 +185,7 @@ export default async function DashboardPage(props: PageProps) {
   const isEmpty = transactions.length === 0;
 
   return (
-    <div className="relative isolate flex flex-col gap-4">
+    <div className="relative isolate flex flex-col gap-4 [&_.recharts-wrapper_*]:outline-none">
       <StarBackground />
       {/* Header row */}
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -207,7 +217,7 @@ export default async function DashboardPage(props: PageProps) {
       {!isEmpty && (
         <div className="flex flex-col gap-4">
           <ClientOnly fallbackHeight="h-40">
-            <SummaryCharts barData={last12} pieData={miniPieData} />
+            <SummaryCharts barData={last12} donutData={donutData} donutTotal={overallSpentTotal} />
           </ClientOnly>
 
           <ClientOnly fallbackHeight="h-10 my-8">
@@ -253,6 +263,20 @@ export default async function DashboardPage(props: PageProps) {
                 periodBoundStart={periodBoundStart}
                 periodBoundEnd={periodBoundEnd}
               />
+            </ClientOnly>
+          </div>
+
+          <ClientOnly fallbackHeight="h-10 my-8">
+            <WaveDivider className="my-8" scrollOffset={3770} />
+          </ClientOnly>
+
+          {/* Section 5: Category analysis */}
+          <div
+            id="category-analysis"
+            className="scroll-mt-4 rounded-xl border border-border bg-card p-5"
+          >
+            <ClientOnly fallbackHeight="h-64">
+              <CategoryAnalysisSection transactions={categoryTxns} />
             </ClientOnly>
           </div>
         </div>

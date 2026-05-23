@@ -1,32 +1,33 @@
 "use client";
 
 import { MiniSpendingBarChart } from "./MiniSpendingBarChart";
-import { MiniCategoryPieChart } from "./MiniCategoryPieChart";
+import { CategoryShareDonuts } from "./CategoryShareDonuts";
 
 interface BarDataPoint {
   label: string;
   spent: number;
 }
 
-interface PieDataPoint {
+interface DonutDataPoint {
   name: string;
   value: number;
-  isOther?: boolean;
+  color: string;
 }
 
 interface Props {
   barData: BarDataPoint[];
-  pieData: PieDataPoint[];
+  donutData: DonutDataPoint[];
+  donutTotal: number;
 }
 
-export function SummaryCharts({ barData, pieData }: Props) {
+export function SummaryCharts({ barData, donutData, donutTotal }: Props) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
       <div className="h-52">
         <MiniSpendingBarChart data={barData} />
       </div>
       <div className="h-52">
-        <MiniCategoryPieChart data={pieData} />
+        <CategoryShareDonuts items={donutData} total={donutTotal} />
       </div>
     </div>
   );

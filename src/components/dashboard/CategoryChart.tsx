@@ -60,10 +60,11 @@ export function CategoryChart({ data, colorMap, hoveredCategory, onHover }: Prop
         <YAxis
           type="category"
           dataKey="category"
-          width={110}
+          width={150}
           tick={{ fontSize: 12 }}
           tickLine={false}
           axisLine={false}
+          interval={0}
         />
         <Tooltip
           content={({ active, payload, label }) => {

@@ -3,39 +3,40 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCallback } from "react";
 
-export function IncomeToggle() {
+export function TransferOutToggle() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const includeIncome = searchParams.get("income") === "1";
+  // Default ON (transfers excluded): only off when explicitly set to "0"
+  const excludeTransferOut = searchParams.get("xferout") !== "0";
 
   const toggle = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
-    if (includeIncome) {
-      params.delete("income");
+    if (excludeTransferOut) {
+      params.set("xferout", "0");
     } else {
-      params.set("income", "1");
+      params.delete("xferout");
     }
     const qs = params.toString();
     router.push(`${pathname}${qs ? `?${qs}` : ""}`);
-  }, [router, pathname, searchParams, includeIncome]);
+  }, [router, pathname, searchParams, excludeTransferOut]);
 
   return (
     <button
       onClick={toggle}
-      aria-pressed={includeIncome}
+      aria-pressed={excludeTransferOut}
       className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
-        includeIncome
-          ? "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400"
+        excludeTransferOut
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
           : "border-border bg-card text-muted-foreground hover:text-foreground"
       }`}
     >
       <span
         className={`h-2 w-2 rounded-full transition-colors ${
-          includeIncome ? "bg-green-500" : "bg-muted-foreground/50"
+          excludeTransferOut ? "bg-amber-500" : "bg-muted-foreground/50"
         }`}
       />
-      Include Income
+      Exclude Transfers Out
     </button>
   );
 }

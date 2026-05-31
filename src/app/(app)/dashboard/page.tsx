@@ -9,6 +9,7 @@ import { TopCategoriesSection } from "@/components/dashboard/TopCategoriesSectio
 import { StackedSpendingChart } from "@/components/dashboard/StackedSpendingChart";
 import { IncomeToggle } from "@/components/dashboard/IncomeToggle";
 import { CleanedDataToggle } from "@/components/dashboard/CleanedDataToggle";
+import { TransferOutToggle } from "@/components/dashboard/TransferOutToggle";
 import { ClientOnly } from "@/components/dashboard/ClientOnly";
 import { WaveDivider } from "@/components/dashboard/WaveDivider";
 import { StarBackground } from "@/components/dashboard/StarBackground";
@@ -33,7 +34,7 @@ import { applyTransactionRules, getUserRules } from "@/lib/rules";
 export const metadata = { title: "Dashboard — SpendWise" };
 
 interface PageProps {
-  searchParams: Promise<{ period?: string; income?: string; cleaned?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ period?: string; income?: string; cleaned?: string; xferout?: string; from?: string; to?: string }>;
 }
 
 export default async function DashboardPage(props: PageProps) {
@@ -63,6 +64,7 @@ export default async function DashboardPage(props: PageProps) {
   const period = searchParams.period ?? "all";
   const includeIncome = searchParams.income === "1";
   const cleanedData = searchParams.cleaned !== "0";
+  const excludeTransferOut = searchParams.xferout !== "0";
 
   let since: Date | null = null;
   let until: Date | null = null;
@@ -109,7 +111,13 @@ export default async function DashboardPage(props: PageProps) {
     ? plaidSync._max.lastSyncedAt.toISOString()
     : null;
 
-  const raw = applyTransactionRules(rawAll, rules);
+  const ruled = applyTransactionRules(rawAll, rules);
+  const raw = excludeTransferOut
+    ? ruled.filter((t) => {
+        const effective = cleanedData ? t.derivedCategory || t.category : t.category;
+        return effective !== "Transfer Out";
+      })
+    : ruled;
 
   const transactions = raw.map((t) => ({
     transactionDate: t.transactionDate,
@@ -204,6 +212,9 @@ export default async function DashboardPage(props: PageProps) {
           </Suspense>
           <Suspense>
             <IncomeToggle />
+          </Suspense>
+          <Suspense>
+            <TransferOutToggle />
           </Suspense>
           <Suspense>
             <PeriodSelector />

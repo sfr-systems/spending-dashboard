@@ -123,13 +123,29 @@ export function LoanInterestBarChart({ data, avgMonthlyCharge, loanStartMonthKey
 
   // Recharts v3's LabelList content callback indexes only into rows where the
   // data key is non-zero, so we derive everything from `value` + the known
-  // `avgMonthlyCharge` instead of looking the row up by index.
-  type LabelProps = { x?: number; y?: number; width?: number; value?: number };
+  // `avgMonthlyCharge` instead of looking the row up by index. Recharts types
+  // `x/y/width` as `string | number | undefined`, so coerce to number locally.
+  type LabelProps = {
+    x?: string | number;
+    y?: string | number;
+    width?: string | number;
+    // recharts' RenderableText: string | number | boolean | null | undefined
+    value?: string | number | boolean | null;
+  };
   const avg = avgMonthlyCharge ?? 0;
 
+  const num = (v: string | number | boolean | null | undefined): number | null => {
+    if (v == null || typeof v === "boolean") return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const renderPreLoanLabel = (props: LabelProps) => {
-    const { x, y, width, value } = props;
-    if (x == null || y == null || width == null || !value || value <= 0) return null;
+    const x = num(props.x);
+    const y = num(props.y);
+    const width = num(props.width);
+    const value = num(props.value);
+    if (x == null || y == null || width == null || value == null || value <= 0) return null;
     return (
       <text x={x + width / 2} y={y - 6} fill="hsl(var(--muted-foreground))" fontSize={10} textAnchor="middle">
         ${Math.round(value)}
@@ -138,7 +154,9 @@ export function LoanInterestBarChart({ data, avgMonthlyCharge, loanStartMonthKey
   };
 
   const renderStackTopLabel = (total: number, diff: number, props: LabelProps) => {
-    const { x, y, width } = props;
+    const x = num(props.x);
+    const y = num(props.y);
+    const width = num(props.width);
     if (x == null || y == null || width == null) return null;
     const cx = x + width / 2;
     const diffColor = diff >= 0 ? COLOR_GREEN : COLOR_RED;
@@ -158,7 +176,7 @@ export function LoanInterestBarChart({ data, avgMonthlyCharge, loanStartMonthKey
   // Gap segment is topmost only when there's no overage (total <= avg).
   // value = gap = avg - total, so total = avg - value, diff = +value (savings).
   const renderGapTopLabel = (props: LabelProps) => {
-    const { value } = props;
+    const value = num(props.value);
     if (value == null || value <= 0) return null;
     const total = avg - value;
     return renderStackTopLabel(total, value, props);
@@ -167,7 +185,7 @@ export function LoanInterestBarChart({ data, avgMonthlyCharge, loanStartMonthKey
   // Over segment is topmost when there's overage.
   // value = over = total - avg, so total = avg + value, diff = -value (loss).
   const renderOverTopLabel = (props: LabelProps) => {
-    const { value } = props;
+    const value = num(props.value);
     if (value == null || value <= 0) return null;
     const total = avg + value;
     return renderStackTopLabel(total, -value, props);

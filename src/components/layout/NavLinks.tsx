@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Files, ArrowLeftRight, Settings, ShieldCheck, Info, FileText, ExternalLink, Pencil } from "lucide-react";
+import { LayoutDashboard, Files, ArrowLeftRight, Settings, ShieldCheck, Info, FileText, ExternalLink, Pencil, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TransactionsPopup } from "@/components/transactions/TransactionsPopup";
 
@@ -20,6 +20,7 @@ const primaryNav: NavItem[] = [
   { href: "/files", label: "Files + Imports", icon: Files },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/edits", label: "Custom Edits", icon: Pencil },
+  { href: "/loan-tracker", label: "Loan Tracker", icon: Landmark },
 ];
 
 const secondaryNav: NavItem[] = [

@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { verifyPasswordAndMfaCode } from "@/lib/mfa/verify";
+import { trustedDeviceCookieOptions } from "@/lib/mfa/trustedDevice";
+import { TRUSTED_DEVICE_COOKIE } from "@/lib/mfa/trustedDeviceConstants";
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,9 +37,13 @@ export async function POST(req: NextRequest) {
         data: { mfaSecretCiphertext: null, mfaEnabledAt: null },
       }),
       db.mfaBackupCode.deleteMany({ where: { userId: session.user.id } }),
+      // Remembered devices only make sense while MFA is on.
+      db.trustedDevice.deleteMany({ where: { userId: session.user.id } }),
     ]);
 
-    return NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set(TRUSTED_DEVICE_COOKIE, "", trustedDeviceCookieOptions(0));
+    return res;
   } catch (err) {
     console.error("[mfa/disable]", err);
     return NextResponse.json(

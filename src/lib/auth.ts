@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { decryptMfaSecret } from "@/lib/mfa/crypto";
 import { compareBackupCode, verifyTotp } from "@/lib/mfa/totp";
+import { findValidTrustedDevice, readTrustedDeviceToken } from "@/lib/mfa/trustedDevice";
+import { TRUSTED_DEVICE_COOKIE } from "@/lib/mfa/trustedDeviceConstants";
 
 // Error codes thrown from authorize() that the login page checks for.
 // NextAuth surfaces `error.message` as the `error` query param on the
@@ -27,7 +29,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
         mfaCode: { label: "MFA code", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
 
         const user = await db.user.findUnique({
@@ -47,6 +49,24 @@ export const authOptions: NextAuthOptions = {
         if (user.mfaEnabledAt && user.mfaSecretCiphertext) {
           const code = (credentials.mfaCode ?? "").trim();
           if (!code) {
+            // A browser the user chose to remember can skip the code.
+            const rawCookie = req?.headers?.cookie ?? req?.headers?.Cookie;
+            const fromCookies = (req as { cookies?: Partial<Record<string, string>> } | undefined)
+              ?.cookies?.[TRUSTED_DEVICE_COOKIE];
+            const token =
+              readTrustedDeviceToken(typeof rawCookie === "string" ? rawCookie : null) ??
+              fromCookies ??
+              null;
+            if (token) {
+              const device = await findValidTrustedDevice(user.id, token);
+              if (device) {
+                await db.trustedDevice.update({
+                  where: { id: device.id },
+                  data: { lastUsedAt: new Date() },
+                });
+                return { id: user.id, email: user.email, firstName: user.firstName };
+              }
+            }
             throw new Error(AUTH_ERROR_MFA_REQUIRED);
           }
 

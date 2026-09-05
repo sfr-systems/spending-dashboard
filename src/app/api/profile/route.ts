@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import { getPlaidClient } from "@/lib/plaid/client";
 import { decryptAccessToken } from "@/lib/plaid/crypto";
 import { verifyPasswordAndMfaCode } from "@/lib/mfa/verify";
+import { revokeAllTrustedDevices, trustedDeviceCookieOptions } from "@/lib/mfa/trustedDevice";
+import { TRUSTED_DEVICE_COOKIE } from "@/lib/mfa/trustedDeviceConstants";
 
 const MIN_PASSWORD_LEN = 8;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,7 +91,13 @@ export async function PATCH(req: NextRequest) {
   }
 
   await db.user.update({ where: { id: session.user.id }, data: updates });
-  return NextResponse.json({ ok: true, updated: Object.keys(updates) });
+  const res = NextResponse.json({ ok: true, updated: Object.keys(updates) });
+  if (updates.passwordHash) {
+    // A new password should force the MFA code again everywhere.
+    await revokeAllTrustedDevices(session.user.id);
+    res.cookies.set(TRUSTED_DEVICE_COOKIE, "", trustedDeviceCookieOptions(0));
+  }
+  return res;
 }
 
 export async function DELETE(req: NextRequest) {

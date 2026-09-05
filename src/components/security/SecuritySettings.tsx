@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
+import { TrustedDevicesPanel } from "./TrustedDevicesPanel";
 
 type Status = {
   enabled: boolean;
@@ -122,6 +123,7 @@ export function SecuritySettings() {
           onDisable={() => setDisableOpen(true)}
           onRegenerate={() => setRegenOpen(true)}
         />
+        <TrustedDevicesPanel />
         {disableOpen && (
           <PasswordAndCodeDialog
             title="Disable two-factor authentication"

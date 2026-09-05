@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { TRUSTED_DEVICE_DAYS } from "@/lib/mfa/trustedDeviceConstants";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -55,7 +57,13 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    // Only after a code was actually entered this time: remember the browser
+    // so the next sign-in can skip the code.
+    if (mfaRequired && mfaCode.trim() && rememberDevice) {
+      await fetch("/api/mfa/trust-device", { method: "POST" }).catch(() => {});
+    }
+
+    router.push("/current-spending");
     router.refresh();
   }
 
@@ -123,6 +131,20 @@ export default function LoginPage() {
               <p className="text-xs text-muted-foreground">
                 6-digit code from your authenticator app, or a one-time backup code.
               </p>
+              <label className="flex cursor-pointer items-start gap-2 pt-1 text-sm">
+                <input
+                  type="checkbox"
+                  checked={rememberDevice}
+                  onChange={(e) => setRememberDevice(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-[hsl(var(--primary))]"
+                />
+                <span>
+                  Remember this device for {TRUSTED_DEVICE_DAYS} days
+                  <span className="block text-xs text-muted-foreground">
+                    You won&apos;t be asked for a code on this browser until then.
+                  </span>
+                </span>
+              </label>
             </div>
           )}
         </CardContent>
